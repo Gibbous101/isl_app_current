@@ -1,0 +1,24 @@
+/* BaseLayout.css */
+.layout-container {
+  padding: 2rem;
+  text-align: center;
+  background-color: #f9f9ff;
+  min-height: 100vh;
+}
+
+.main-title {
+  color: #7b2ff7;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}

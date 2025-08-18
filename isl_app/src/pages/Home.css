@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400&display=swap');
+
+/* Set default font-family for the app */
+*{
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+}
+.home-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+}
+
+.welcome-message {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.navigation {
+  display: flex;
+  gap: 15px;
+}
+
+.navigation button {
+  padding: 10px 20px;
+  background-color: var(--accent-color);
+  border: none;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.navigation button:hover {
+  background-color: #9333ea;
+}
+
+.section {
+  min-height: 500px; /* Adjust as needed for scroll effect */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 60px;
+  margin-bottom: 40px;
+}

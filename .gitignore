@@ -1,0 +1,10 @@
+# React Native
+node_modules/
+.expo/
+.expo-shared/
+android/
+ios/
+.DS_Store
+
+# Firebase Functions
+backend/functions/node_modules/

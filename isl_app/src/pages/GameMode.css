@@ -1,0 +1,39 @@
+/isl_app/isl_app/src/pages/GameMode.css
+/* Styles specific to the GameMode component */
+
+.game-mode-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: var(--card-color);
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+}
+
+.game-mode-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--accent-color);
+  margin-bottom: 15px;
+}
+
+.game-mode-buttons {
+  display: flex;
+  gap: 15px;
+}
+
+.game-mode-button {
+  padding: 10px 20px;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.game-mode-button:hover {
+  background-color: #9333ea;
+}

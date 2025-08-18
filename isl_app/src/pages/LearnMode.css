@@ -1,0 +1,37 @@
+/isl_app/isl_app/src/pages/LearnMode.css
+/* Styles specific to the LearnMode component */
+
+.learn-mode-container {
+  padding: 20px;
+  background-color: var(--card-color);
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+}
+
+.learn-mode-header {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--accent-color);
+  margin-bottom: 15px;
+}
+
+.learn-mode-content {
+  font-size: 16px;
+  color: var(--text-color);
+  line-height: 1.5;
+}
+
+.learn-mode-button {
+  margin-top: 20px;
+  padding: 10px 15px;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.learn-mode-button:hover {
+  background-color: #9333ea;
+}
