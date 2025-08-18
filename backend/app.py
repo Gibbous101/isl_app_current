@@ -1,43 +1,94 @@
+from flask import Flask, Response, jsonify, send_file
+from threading import Thread
+import os
 import cv2
-from flask import Flask, Response
-from threading import Thread, Lock
-from features.features_routes import features_bp
-from features.predict_routes import predict_bp
-from utils.frame_handler import set_latest_frame, get_latest_frame
-from flask_cors import CORS
+import time
 
 app = Flask(__name__)
-CORS(app, origins=["https://isl-app-backend.onrender.com"])
 
-# Register route blueprints
-app.register_blueprint(features_bp)
-app.register_blueprint(predict_bp)
+# ------------------------------
+# CORS Setup (allow your frontend)
+# ------------------------------
+from flask_cors import CORS
+CORS(app, origins=["https://isl-app-backend.onrender.com"])  # replace "*" with your frontend URL in production
 
-# -- Camera Capture (single source for entire app) --
-camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-lock = Lock()
+# ------------------------------
+# Global Variables
+# ------------------------------
+frame = None  # store the current frame
 
+# ------------------------------
+# Capture Frames (debug version)
+# ------------------------------
 def capture_frames():
-    while True:
-        success, frame = camera.read()
-        if success:
-            set_latest_frame(frame)
+    global frame
+    try:
+        # Check if running on Render
+        if "RENDER" in os.environ:
+            print("⚠️ Running on Render, using test video instead of webcam")
+            cap = cv2.VideoCapture("data/test_video.mp4")  # provide a short test video in your project
+        else:
+            cap = cv2.VideoCapture(0)  # local webcam
 
-@app.route('/video_feed')
-def video_feed():
-    def generate():
         while True:
-            frame = get_latest_frame()
-            if frame is None:
+            ret, frame_read = cap.read()
+            if not ret:
+                print("⚠️ Frame not read correctly")
+                time.sleep(0.1)
                 continue
-            with lock:
-                _, buffer = cv2.imencode('.jpg', frame)
-                frame = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+            frame = frame_read
+            time.sleep(0.03)  # ~30 FPS
+    except Exception as e:
+        print("❌ Error in capture_frames:", e)
 
+# ------------------------------
+# Video Feed Route
+# ------------------------------
+@app.route("/video_feed")
+def video_feed():
+    global frame
+    try:
+        if frame is None:
+            # Return placeholder image if no frame
+            return send_file("placeholder.jpg", mimetype="image/jpeg")
+
+        # Encode frame as JPEG
+        ret, buffer = cv2.imencode('.jpg', frame)
+        if not ret:
+            return send_file("placeholder.jpg", mimetype="image/jpeg")
+
+        return Response(buffer.tobytes(), mimetype='image/jpeg')
+    except Exception as e:
+        print("❌ Error in video_feed:", e)
+        return send_file("placeholder.jpg", mimetype="image/jpeg")
+
+# ------------------------------
+# Predict Current (example)
+# ------------------------------
+@app.route("/predict_current")
+def predict_current():
+    # Demo: always return None if no frame
+    global frame
+    if frame is None:
+        return jsonify({"confirmed": False, "predicted": "None"})
+
+    # Here your actual ML prediction code can go
+    predicted_letter = "C"  # placeholder
+    return jsonify({"confirmed": True, "predicted": predicted_letter})
+
+# ------------------------------
+# Predict Game (example)
+# ------------------------------
+@app.route("/predict_game")
+def predict_game():
+    # Demo logic
+    return jsonify({"confirmed": False, "prediction": "None"})
+
+# ------------------------------
+# Main
+# ------------------------------
 if __name__ == "__main__":
+    # Start frame capture in background
     Thread(target=capture_frames, daemon=True).start()
-    print("✅ Flask server running on http://127.0.0.1:5000")
+    print("✅ Flask server running (deployed on Render)")
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
