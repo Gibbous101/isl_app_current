@@ -9,8 +9,8 @@ from utils.frame_handler import get_latest_frame
 features_bp = Blueprint('features', __name__)
 
 # ✅ Load Model
-MODEL_PATH = "backend/model/sign_language_model.h5"
-LABELS_PATH = "backend/model/label_classes.npy"
+MODEL_PATH = "model/sign_language_model.h5"
+LABELS_PATH = "model/label_classes.npy"
 model = tf.keras.models.load_model(MODEL_PATH)
 label_classes = np.load(LABELS_PATH, allow_pickle=True)
 

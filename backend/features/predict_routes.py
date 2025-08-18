@@ -11,8 +11,8 @@ import random
 
 predict_bp = Blueprint('predict', __name__)
 
-MODEL_PATH = "backend/model/sign_language_model.h5"
-LABELS_PATH = "backend/model/label_classes.npy"
+MODEL_PATH = "model/sign_language_model.h5"
+LABELS_PATH = "model/label_classes.npy"
 model = tf.keras.models.load_model(MODEL_PATH)
 labels = np.load(LABELS_PATH, allow_pickle=True)
 

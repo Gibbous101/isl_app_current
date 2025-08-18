@@ -4,3 +4,4 @@ mediapipe
 numpy
 opencv-python
 tensorflow
+protobuf==3.20.3

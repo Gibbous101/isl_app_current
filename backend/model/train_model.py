@@ -56,7 +56,7 @@ print(f"\n✅ Model trained successfully with accuracy: {accuracy*100:.2f}%")
 # ===============================
 # Save model and label encoder
 # ===============================
-model.save("backend/model/sign_language_model.h5")
-np.save("backend/model/label_classes.npy", label_encoder.classes_)
+model.save("model/sign_language_model.h5")
+np.save("model/label_classes.npy", label_encoder.classes_)
 
 print("\n✅ Model and label classes saved successfully!")
