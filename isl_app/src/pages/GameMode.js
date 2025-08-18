@@ -5,7 +5,7 @@ import BaseLayout from "../components/BaseLayout";
 import "./PracticeMode.css";
 
 const GameMode = () => {
-  const [frameURL] = useState("http://127.0.0.1:5000/video_feed");
+  const [frameURL] = useState("https://isl-app-backend.onrender.com/video_feed");
   const [prediction, setPrediction] = useState("");
   const [feedback, setFeedback] = useState("");
   const [letterList, setLetterList] = useState([]);
@@ -14,7 +14,7 @@ const GameMode = () => {
 
   // Fetch the daily letter list once on mount
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/get_daily_letters")
+    fetch("https://isl-app-backend.onrender.com/get_daily_letters")
       .then((res) => res.json())
       .then((data) => {
         setLetterList(data.letters);
@@ -28,7 +28,7 @@ const GameMode = () => {
   useEffect(() => {
     const interval = setInterval(async () => {
       const response = await fetch(
-        "http://127.0.0.1:5000/predict_current"
+        "https://isl-app-backend.onrender.com/predict_current"
       );
       const data = await response.json();
 
