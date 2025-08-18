@@ -7,7 +7,7 @@ from utils.frame_handler import set_latest_frame, get_latest_frame
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["https://isl-app-backend.onrender.com"])
 
 # Register route blueprints
 app.register_blueprint(features_bp)
