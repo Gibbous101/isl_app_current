@@ -1,82 +1,93 @@
-import React, { useState, useEffect, useRef } from 'react';
-import BaseLayout from '../components/BaseLayout';
-import './PracticeMode.css';
+import React, { useState, useEffect, useRef } from "react";
+import BaseLayout from "../components/BaseLayout";
+import "./PracticeMode.css";
 
 const PracticeMode = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  const [prediction, setPrediction] = useState('');
-  const [targetLetter, setTargetLetter] = useState('A');
-  const [feedback, setFeedback] = useState('');
+  const [prediction, setPrediction] = useState("");
+  const [targetLetter, setTargetLetter] = useState("A");
+  const [feedback, setFeedback] = useState("");
 
-  const letters = ['A', 'B', 'C']; // letters in your dataset
+  // ✅ Letters in your dataset
+  const letters = ["A", "B", "C"];
 
   const getRandomLetter = () => {
     let random;
     do {
       random = letters[Math.floor(Math.random() * letters.length)];
-    } while (random === targetLetter); // avoid repetition
+    } while (random === targetLetter);
     return random;
   };
 
   // Start camera
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then((stream) => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play();
+        }
       })
-      .catch(err => console.error('Camera error:', err));
+      .catch((err) => console.error("Camera error:", err));
   }, []);
 
-  // Continuous capture & prediction
+  // Continuous capture + prediction
   const captureAndPredict = async () => {
     const video = videoRef.current;
     if (!video || video.readyState < 2) {
-      // Video not ready yet, try again next frame
       requestAnimationFrame(captureAndPredict);
       return;
     }
 
+    // Draw current frame to canvas
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const frameBase64 = canvas.toDataURL('image/jpeg');
+    // Convert frame to base64
+    const frameBase64 = canvas.toDataURL("image/jpeg");
 
     try {
-      const res = await fetch('https://isl-app-backend.onrender.com/predict_current', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ frame: frameBase64 })
-      });
+      const res = await fetch(
+        "https://isl-app-backend.onrender.com/predict_current",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ frame: frameBase64 }),
+        }
+      );
 
       const data = await res.json();
       if (data.confirmed) {
         const predictedLetter = data.predicted.trim().toUpperCase();
         setPrediction(predictedLetter);
-        setFeedback(predictedLetter === targetLetter ? '✅ Correct!' : '❌ Try Again!');
+        setFeedback(
+          predictedLetter === targetLetter ? "✅ Correct!" : "❌ Try Again!"
+        );
       } else {
-        setPrediction('');
-        setFeedback('Detecting...');
+        setPrediction("");
+        setFeedback("Detecting...");
       }
     } catch (error) {
-      console.error('Error fetching prediction:', error);
-      setFeedback('❌ Error detecting');
+      console.error("Error fetching prediction:", error);
+      setFeedback("❌ Error detecting");
     }
 
-    requestAnimationFrame(captureAndPredict); // loop continuously
+    // call again (continuous loop)
+    requestAnimationFrame(captureAndPredict);
   };
 
-  // Start continuous prediction when video is ready
+  // Start prediction loop once the video is ready
   useEffect(() => {
     const video = videoRef.current;
-    const onCanPlay = () => captureAndPredict();
-    video?.addEventListener('canplay', onCanPlay);
-    return () => video?.removeEventListener('canplay', onCanPlay);
+    const handleCanPlay = () => captureAndPredict();
+    video?.addEventListener("canplay", handleCanPlay);
+    return () => video?.removeEventListener("canplay", handleCanPlay);
   }, []);
 
   // Change target letter every 5 seconds
@@ -90,16 +101,33 @@ const PracticeMode = () => {
   return (
     <BaseLayout title="Practice Mode">
       <div className="video-card">
-        <h2 className="practice-title">Practice your ASL alphabet signs with real-time feedback</h2>
-        
-        <video ref={videoRef} className="video-frame" autoPlay muted playsInline />
+        <h2 className="practice-title">
+          Practice your ASL alphabet signs with real-time feedback
+        </h2>
 
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
+        <video
+          ref={videoRef}
+          className="video-frame"
+          autoPlay
+          muted
+          playsInline
+        />
+
+        <canvas ref={canvasRef} style={{ display: "none" }} />
 
         <div className="challenge-card">
-          <h3>Prediction: <span>{prediction || 'Detecting...'}</span></h3>
-          <h3>Target Letter: <span>{targetLetter}</span></h3>
-          <h3 style={{ color: feedback.startsWith('✅') ? 'green' : 'red', fontWeight: 'bold' }}>
+          <h3>
+            Prediction: <span>{prediction || "Detecting..."}</span>
+          </h3>
+          <h3>
+            Target Letter: <span>{targetLetter}</span>
+          </h3>
+          <h3
+            style={{
+              color: feedback.startsWith("✅") ? "green" : "red",
+              fontWeight: "bold",
+            }}
+          >
             {feedback}
           </h3>
         </div>
