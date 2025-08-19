@@ -10,7 +10,7 @@ const PracticeMode = () => {
   const [targetLetter, setTargetLetter] = useState("A");
   const [feedback, setFeedback] = useState("");
 
-  const letters = ["A", "B", "C"]; // Letters in your dataset
+  const letters = ["A", "B", "C"]; // letters in your dataset
 
   const getRandomLetter = () => {
     let random;
@@ -20,21 +20,19 @@ const PracticeMode = () => {
     return random;
   };
 
-  // Start camera and start prediction loop once the stream is ready
+  // Start camera and begin prediction when stream is ready
   useEffect(() => {
     let started = false;
-
     navigator.mediaDevices
       .getUserMedia({ video: true })
       .then((stream) => {
         if (videoRef.current) {
-          console.log("STREAM:", stream, stream.getTracks());
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
             if (!started) {
               started = true;
               videoRef.current.play();
-              captureAndPredict(); // start loop as soon as metadata is loaded
+              captureAndPredict();
             }
           };
         }
@@ -72,9 +70,13 @@ const PracticeMode = () => {
       if (data.confirmed) {
         const predictedLetter = data.predicted.trim().toUpperCase();
         setPrediction(predictedLetter);
-        setFeedback(
-          predictedLetter === targetLetter ? "✅ Correct!" : "❌ Try Again!"
-        );
+
+        // compare with the latest target letter
+        if (predictedLetter === targetLetter.toUpperCase()) {
+          setFeedback("✅ Correct!");
+        } else {
+          setFeedback("❌ Try Again!");
+        }
       } else {
         setPrediction("");
         setFeedback("Detecting...");
@@ -89,10 +91,11 @@ const PracticeMode = () => {
 
   // Change target letter every 5 seconds
   useEffect(() => {
-    const letterInterval = setInterval(() => {
+    const interval = setInterval(() => {
       setTargetLetter(getRandomLetter());
     }, 5000);
-    return () => clearInterval(letterInterval);
+
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -113,12 +116,8 @@ const PracticeMode = () => {
         <canvas ref={canvasRef} style={{ display: "none" }} />
 
         <div className="challenge-card">
-          <h3>
-            Prediction: <span>{prediction || "Detecting..."}</span>
-          </h3>
-          <h3>
-            Target Letter: <span>{targetLetter}</span>
-          </h3>
+          <h3>Prediction: <span>{prediction || "Detecting..."}</span></h3>
+          <h3>Target Letter: <span>{targetLetter}</span></h3>
           <h3
             style={{
               color: feedback.startsWith("✅") ? "green" : "red",
