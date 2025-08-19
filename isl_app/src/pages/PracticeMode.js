@@ -10,7 +10,13 @@ const PracticeMode = () => {
   const [targetLetter, setTargetLetter] = useState("A");
   const [feedback, setFeedback] = useState("");
 
-  const letters = ["A", "B", "C"]; // letters in your dataset
+  // Store latest target letter in a ref so we can access it inside the async loop
+  const targetRef = useRef(targetLetter);
+  useEffect(() => {
+    targetRef.current = targetLetter;
+  }, [targetLetter]);
+
+  const letters = ["A", "B", "C"];
 
   const getRandomLetter = () => {
     let random;
@@ -20,7 +26,6 @@ const PracticeMode = () => {
     return random;
   };
 
-  // Start camera and begin prediction when stream is ready
   useEffect(() => {
     let started = false;
     navigator.mediaDevices
@@ -40,7 +45,6 @@ const PracticeMode = () => {
       .catch((err) => console.error("Camera error:", err));
   }, []);
 
-  // Continuous capture + prediction
   const captureAndPredict = async () => {
     const video = videoRef.current;
     if (!video || video.readyState < 2) {
@@ -71,8 +75,8 @@ const PracticeMode = () => {
         const predictedLetter = data.predicted.trim().toUpperCase();
         setPrediction(predictedLetter);
 
-        // compare with the latest target letter
-        if (predictedLetter === targetLetter.toUpperCase()) {
+        // compare with *latest* target letter
+        if (predictedLetter === targetRef.current.toUpperCase()) {
           setFeedback("✅ Correct!");
         } else {
           setFeedback("❌ Try Again!");
@@ -89,7 +93,6 @@ const PracticeMode = () => {
     requestAnimationFrame(captureAndPredict);
   };
 
-  // Change target letter every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setTargetLetter(getRandomLetter());
@@ -104,26 +107,12 @@ const PracticeMode = () => {
         <h2 className="practice-title">
           Practice your ASL alphabet signs with real-time feedback
         </h2>
-
-        <video
-          ref={videoRef}
-          className="video-frame"
-          autoPlay
-          muted
-          playsInline
-        />
-
+        <video ref={videoRef} className="video-frame" autoPlay muted playsInline />
         <canvas ref={canvasRef} style={{ display: "none" }} />
-
         <div className="challenge-card">
           <h3>Prediction: <span>{prediction || "Detecting..."}</span></h3>
           <h3>Target Letter: <span>{targetLetter}</span></h3>
-          <h3
-            style={{
-              color: feedback.startsWith("✅") ? "green" : "red",
-              fontWeight: "bold",
-            }}
-          >
+          <h3 style={{ color: feedback.startsWith("✅") ? "green" : "red", fontWeight: "bold" }}>
             {feedback}
           </h3>
         </div>
