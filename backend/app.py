@@ -17,6 +17,10 @@ CORS(app, origins=["https://isl-app-backend.onrender.com"])  # replace "*" with 
 # ------------------------------
 frame = None  # store the current frame
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PLACEHOLDER_PATH = os.path.join(BASE_DIR, "placeholder.jpg")
+TEST_VIDEO_PATH = os.path.join(BASE_DIR, "data", "test_video.mp4")
+
 # ------------------------------
 # Capture Frames (debug version)
 # ------------------------------
@@ -26,7 +30,7 @@ def capture_frames():
         # Check if running on Render
         if "RENDER" in os.environ:
             print("⚠️ Running on Render, using test video instead of webcam")
-            cap = cv2.VideoCapture("data/test_video.mp4")  # provide a short test video in your project
+            cap = cv2.VideoCapture(TEST_VIDEO_PATH)  # provide a short test video in your project
         else:
             cap = cv2.VideoCapture(0)  # local webcam
 
@@ -50,17 +54,17 @@ def video_feed():
     try:
         if frame is None:
             # Return placeholder image if no frame
-            return send_file("placeholder.jpg", mimetype="image/jpeg")
+            return send_file(PLACEHOLDER_PATH, mimetype="image/jpeg")
 
         # Encode frame as JPEG
         ret, buffer = cv2.imencode('.jpg', frame)
         if not ret:
-            return send_file("placeholder.jpg", mimetype="image/jpeg")
+            return send_file(PLACEHOLDER_PATH, mimetype="image/jpeg")
 
         return Response(buffer.tobytes(), mimetype='image/jpeg')
     except Exception as e:
         print("❌ Error in video_feed:", e)
-        return send_file("placeholder.jpg", mimetype="image/jpeg")
+        return send_file(PLACEHOLDER_PATH, mimetype="image/jpeg")
 
 # ------------------------------
 # Predict Current (example)
