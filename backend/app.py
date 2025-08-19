@@ -1,21 +1,12 @@
-from flask import Flask, Response, jsonify, send_file
-import os
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import base64
 import cv2
+import numpy as np
+import os
 
 app = Flask(__name__)
-
-# ------------------------------
-# CORS Setup (allow your frontend)
-# ------------------------------
-from flask_cors import CORS
-CORS(app, origins=["*"])  # allow all frontend calls for testing
-
-# ------------------------------
-# Paths
-# ------------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PLACEHOLDER_PATH = os.path.join(BASE_DIR, "placeholder.jpg")
-TEST_VIDEO_PATH = os.path.join(BASE_DIR, "data", "test_video.mp4")
+CORS(app, origins=["*"])  # Allow all frontend calls for testing
 
 # ------------------------------
 # Root Route
@@ -25,38 +16,34 @@ def home():
     return "ISL App Backend Running!"
 
 # ------------------------------
-# Video Feed Route (Render-safe)
-# ------------------------------
-@app.route("/video_feed")
-def video_feed():
-    try:
-        # Use test video if exists
-        if os.path.exists(TEST_VIDEO_PATH):
-            cap = cv2.VideoCapture(TEST_VIDEO_PATH)
-            ret, frame = cap.read()
-            cap.release()
-            if ret:
-                ret, buffer = cv2.imencode('.jpg', frame)
-                if ret:
-                    return Response(buffer.tobytes(), mimetype='image/jpeg')
-        # Fallback to placeholder image
-        return send_file(PLACEHOLDER_PATH, mimetype="image/jpeg")
-    except Exception as e:
-        print("❌ Error in video_feed:", e)
-        return send_file(PLACEHOLDER_PATH, mimetype="image/jpeg")
-
-# ------------------------------
 # Predict Current Route
 # ------------------------------
-@app.route("/predict_current")
+@app.route("/predict_current", methods=["POST"])
 def predict_current():
-    # Always return a static letter for Render-safe debug
-    return jsonify({"confirmed": True, "predicted": "C"})
+    try:
+        data = request.json
+        if "frame" not in data:
+            return jsonify({"confirmed": False, "predicted": "None", "error": "No frame provided"})
+
+        # Decode base64 image from frontend
+        img_data = data["frame"].split(",")[1] if "," in data["frame"] else data["frame"]
+        img_bytes = base64.b64decode(img_data)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        # TODO: Add your ML prediction here
+        # For debug, return static letter
+        predicted_letter = "C"
+
+        return jsonify({"confirmed": True, "predicted": predicted_letter})
+    except Exception as e:
+        print("❌ Error in predict_current:", e)
+        return jsonify({"confirmed": False, "predicted": "None", "error": str(e)})
 
 # ------------------------------
 # Predict Game Route
 # ------------------------------
-@app.route("/predict_game")
+@app.route("/predict_game", methods=["POST"])
 def predict_game():
     return jsonify({"confirmed": False, "prediction": "None"})
 
