@@ -3,7 +3,7 @@ import BaseLayout from '../components/BaseLayout';
 import './PracticeMode.css';
 
 const PracticeMode = () => {
-  const [frameURL] = useState('http://127.0.0.1:5000/video_feed');
+  const [frameURL] = useState('https://isl-app-backend.onrender.com/video_feed');
   const [prediction, setPrediction] = useState('');
   const [targetLetter, setTargetLetter] = useState('A');
   const [feedback, setFeedback] = useState('');
