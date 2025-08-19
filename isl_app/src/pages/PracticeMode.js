@@ -10,8 +10,7 @@ const PracticeMode = () => {
   const [targetLetter, setTargetLetter] = useState("A");
   const [feedback, setFeedback] = useState("");
 
-  // ✅ Letters in your dataset
-  const letters = ["A", "B", "C"];
+  const letters = ["A", "B", "C"]; // Letters in your dataset
 
   const getRandomLetter = () => {
     let random;
@@ -21,14 +20,22 @@ const PracticeMode = () => {
     return random;
   };
 
-  // Start camera
+  // Start camera and start prediction loop once the stream is ready
   useEffect(() => {
+    let started = false;
+
     navigator.mediaDevices
       .getUserMedia({ video: true })
       .then((stream) => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play();
+          videoRef.current.onloadedmetadata = () => {
+            if (!started) {
+              started = true;
+              videoRef.current.play();
+              captureAndPredict(); // start loop as soon as metadata is loaded
+            }
+          };
         }
       })
       .catch((err) => console.error("Camera error:", err));
@@ -42,7 +49,6 @@ const PracticeMode = () => {
       return;
     }
 
-    // Draw current frame to canvas
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -79,23 +85,6 @@ const PracticeMode = () => {
 
     requestAnimationFrame(captureAndPredict);
   };
-
-  // Start prediction loop once the video is ready (or after 2s as fallback)
-  useEffect(() => {
-    const video = videoRef.current;
-    const startLoop = () => captureAndPredict();
-
-    // Start when video is ready
-    video?.addEventListener("canplay", startLoop);
-
-    // Fallback (start after 2 seconds anyway)
-    const timeout = setTimeout(startLoop, 2000);
-
-    return () => {
-      video?.removeEventListener("canplay", startLoop);
-      clearTimeout(timeout);
-    };
-  }, []);
 
   // Change target letter every 5 seconds
   useEffect(() => {
