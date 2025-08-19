@@ -28,6 +28,7 @@ const PracticeMode = () => {
       .getUserMedia({ video: true })
       .then((stream) => {
         if (videoRef.current) {
+          console.log("STREAM:", stream, stream.getTracks());
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
             if (!started) {
