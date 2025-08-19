@@ -49,7 +49,6 @@ const PracticeMode = () => {
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert frame to base64
     const frameBase64 = canvas.toDataURL("image/jpeg");
 
     try {
@@ -78,16 +77,24 @@ const PracticeMode = () => {
       setFeedback("❌ Error detecting");
     }
 
-    // call again (continuous loop)
     requestAnimationFrame(captureAndPredict);
   };
 
-  // Start prediction loop once the video is ready
+  // Start prediction loop once the video is ready (or after 2s as fallback)
   useEffect(() => {
     const video = videoRef.current;
-    const handleCanPlay = () => captureAndPredict();
-    video?.addEventListener("canplay", handleCanPlay);
-    return () => video?.removeEventListener("canplay", handleCanPlay);
+    const startLoop = () => captureAndPredict();
+
+    // Start when video is ready
+    video?.addEventListener("canplay", startLoop);
+
+    // Fallback (start after 2 seconds anyway)
+    const timeout = setTimeout(startLoop, 2000);
+
+    return () => {
+      video?.removeEventListener("canplay", startLoop);
+      clearTimeout(timeout);
+    };
   }, []);
 
   // Change target letter every 5 seconds
