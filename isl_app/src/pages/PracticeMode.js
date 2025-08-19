@@ -30,18 +30,21 @@ const PracticeMode = () => {
       .catch(err => console.error('Camera error:', err));
   }, []);
 
-  // Capture frame and send to backend
-  const fetchPrediction = async () => {
-    if (!videoRef.current) return;
+  // Continuous capture & prediction
+  const captureAndPredict = async () => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) {
+      // Video not ready yet, try again next frame
+      requestAnimationFrame(captureAndPredict);
+      return;
+    }
 
-    // Create canvas for capturing frame
     const canvas = canvasRef.current;
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert frame to base64
     const frameBase64 = canvas.toDataURL('image/jpeg');
 
     try {
@@ -55,12 +58,7 @@ const PracticeMode = () => {
       if (data.confirmed) {
         const predictedLetter = data.predicted.trim().toUpperCase();
         setPrediction(predictedLetter);
-
-        if (predictedLetter === targetLetter.toUpperCase()) {
-          setFeedback('✅ Correct!');
-        } else {
-          setFeedback('❌ Try Again!');
-        }
+        setFeedback(predictedLetter === targetLetter ? '✅ Correct!' : '❌ Try Again!');
       } else {
         setPrediction('');
         setFeedback('Detecting...');
@@ -69,13 +67,17 @@ const PracticeMode = () => {
       console.error('Error fetching prediction:', error);
       setFeedback('❌ Error detecting');
     }
+
+    requestAnimationFrame(captureAndPredict); // loop continuously
   };
 
-  // Fetch prediction every 1 second
+  // Start continuous prediction when video is ready
   useEffect(() => {
-    const interval = setInterval(fetchPrediction, 1000);
-    return () => clearInterval(interval);
-  }, [targetLetter]);
+    const video = videoRef.current;
+    const onCanPlay = () => captureAndPredict();
+    video?.addEventListener('canplay', onCanPlay);
+    return () => video?.removeEventListener('canplay', onCanPlay);
+  }, []);
 
   // Change target letter every 5 seconds
   useEffect(() => {
