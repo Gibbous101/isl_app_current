@@ -4,20 +4,34 @@ import base64
 import cv2
 import numpy as np
 import os
+import mediapipe as mp
+import tensorflow as tf
 
 app = Flask(__name__)
-CORS(app, origins=["*"])  # Allow all frontend calls for testing
+CORS(app, origins=["*"])
 
-# ------------------------------
-# Root Route
-# ------------------------------
+# -------------------------------------------------------------------
+# Load model and labels
+# -------------------------------------------------------------------
+MODEL_PATH  = "model/sign_language_model.h5"
+LABELS_PATH = "model/label_classes.npy"
+
+model = tf.keras.models.load_model(MODEL_PATH)
+label_classes = np.load(LABELS_PATH, allow_pickle=True)
+
+mp_hands   = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+hands      = mp_hands.Hands(max_num_hands=1,
+                            min_detection_confidence=0.7,
+                            min_tracking_confidence=0.7)
+
 @app.route("/")
 def home():
     return "ISL App Backend Running!"
-#change
-# ------------------------------
-# Predict Current Route
-# ------------------------------
+
+# -------------------------------------------------------------------
+# Predict current frame (POST, base64 frame from frontend)
+# -------------------------------------------------------------------
 @app.route("/predict_current", methods=["POST"])
 def predict_current():
     try:
@@ -25,31 +39,38 @@ def predict_current():
         if "frame" not in data:
             return jsonify({"confirmed": False, "predicted": "None", "error": "No frame provided"})
 
-        # Decode base64 image from frontend
-        img_data = data["frame"].split(",")[1] if "," in data["frame"] else data["frame"]
+        # Decode frame
+        img_data  = data["frame"].split(",")[1] if "," in data["frame"] else data["frame"]
         img_bytes = base64.b64decode(img_data)
-        nparr = np.frombuffer(img_bytes, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        nparr     = np.frombuffer(img_bytes, np.uint8)
+        frame     = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if frame is None:
+            return jsonify({"confirmed": False, "predicted": "None", "error": "Invalid frame"})
 
-        # TODO: Add your ML prediction here
-        # For debug, return static letter
-        predicted_letter = "C"
+        # Convert to RGB
+        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results   = hands.process(image_rgb)
 
-        return jsonify({"confirmed": True, "predicted": predicted_letter})
+        if results.multi_hand_landmarks:
+            for hand_landmarks in results.multi_hand_landmarks:
+                landmarks = []
+                for lm in hand_landmarks.landmark:
+                    landmarks.extend([lm.x, lm.y, lm.z])
+
+                prediction_index  = np.argmax(model.predict([landmarks]))
+                predicted_letter  = str(label_classes[prediction_index])
+                return jsonify({"confirmed": True, "predicted": predicted_letter})
+
+        # No hand detected
+        return jsonify({"confirmed": False, "predicted": "None"})
+
     except Exception as e:
         print("❌ Error in predict_current:", e)
         return jsonify({"confirmed": False, "predicted": "None", "error": str(e)})
 
-# ------------------------------
-# Predict Game Route
-# ------------------------------
-@app.route("/predict_game", methods=["POST"])
-def predict_game():
-    return jsonify({"confirmed": False, "prediction": "None"})
-
-# ------------------------------
-# Main
-# ------------------------------
+# -------------------------------------------------------------------
+# Start
+# -------------------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"✅ Flask server running on port {port}")
