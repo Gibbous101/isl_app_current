@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import BaseLayout from "../components/BaseLayout";
-import { Hands } from "@mediapipe/hands";
+import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import * as cam from "@mediapipe/camera_utils";
 import "./PracticeMode.css";
@@ -39,7 +39,11 @@ const PracticeMode = () => {
     });
 
     let isSending = false;
+
     hands.onResults(async (results) => {
+      const canvasElement = canvasRef.current;
+      const canvasCtx = canvasElement.getContext("2d");
+
       // Always draw the camera feed smoothly
       canvasCtx.save();
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -53,7 +57,7 @@ const PracticeMode = () => {
 
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         for (const landmarks of results.multiHandLandmarks) {
-          drawConnectors(canvasCtx, landmarks, Hands.HAND_CONNECTIONS, {
+          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
             color: "#00FF00",
             lineWidth: 2,
           });
@@ -77,6 +81,13 @@ const PracticeMode = () => {
               .then((data) => {
                 if (data.predicted) {
                   setPrediction(data.predicted);
+
+                  // Simple feedback check
+                  if (data.predicted === targetLetter) {
+                    setFeedback(`✅ Correct! It's ${data.predicted}`);
+                  } else {
+                    setFeedback(`❌ Try Again! You showed ${data.predicted}`);
+                  }
                 }
               })
               .catch((err) => console.error("Error:", err))
@@ -114,7 +125,7 @@ const PracticeMode = () => {
     <BaseLayout title="Practice Mode">
       <div className="video-card">
         <h2 className="practice-title">
-          Practice your ASL alphabet signs with real-time feedback
+          Practice your ISL alphabet signs with real-time feedback
         </h2>
 
         {/* hidden video for mediapipe */}
@@ -128,6 +139,7 @@ const PracticeMode = () => {
           playsInline
           style={{ display: "none" }}
         />
+
         {/* canvas that shows landmarks + live feed */}
         <canvas
           ref={canvasRef}
