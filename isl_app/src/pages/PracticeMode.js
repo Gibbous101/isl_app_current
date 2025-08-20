@@ -43,45 +43,39 @@ const PracticeMode = () => {
       minTrackingConfidence: 0.7,
     });
 
-    hands.onResults(async (results) => {
-      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const landmarks = results.multiHandLandmarks[0]
-          .flatMap((p) => [p.x, p.y, p.z])
-          .slice(0, 63); // Ensure length is 63
+    let sending = false;
 
-        try {
-          const res = await fetch(
-            "https://isl-app-backend.onrender.com/predict_current",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ landmarks }),
-            }
-          );
-          const data = await res.json();
+hands.onResults(async (results) => {
+  if (!results.multiHandLandmarks || sending) return;
+  sending = true;
 
-          if (data.confirmed) {
-            const predictedLetter = data.predicted.trim().toUpperCase();
-            setPrediction(predictedLetter);
+  const landmarks = results.multiHandLandmarks[0]
+    .flatMap(p => [p.x, p.y, p.z])
+    .slice(0, 63);
 
-            if (predictedLetter === targetRef.current.toUpperCase()) {
-              setFeedback("✅ Correct!");
-            } else {
-              setFeedback("❌ Try Again!");
-            }
-          } else {
-            setPrediction("");
-            setFeedback("Detecting...");
-          }
-        } catch (err) {
-          console.error("Error fetching prediction:", err);
-          setFeedback("❌ Error detecting");
-        }
-      } else {
-        setPrediction("");
-        setFeedback("Detecting...");
-      }
+  try {
+    const res = await fetch("https://isl-app-backend.onrender.com/predict_current", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ landmarks }),
     });
+    const data = await res.json();
+
+    if (data.confirmed) {
+      const predictedLetter = data.predicted.trim().toUpperCase();
+      setPrediction(predictedLetter);
+      setFeedback(predictedLetter === targetRef.current.toUpperCase() ? "✅ Correct!" : "❌ Try Again!");
+    } else {
+      setPrediction("");
+      setFeedback("Detecting...");
+    }
+  } catch (err) {
+    console.error(err);
+    setFeedback("❌ Error detecting");
+  }
+
+  sending = false;
+});
 
     const camera = new Camera(videoRef.current, {
       onFrame: async () => {
