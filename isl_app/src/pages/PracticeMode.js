@@ -1,23 +1,33 @@
 // src/pages/PracticeMode.js
-import React, { useEffect, useRef, useState } from "react";
-import * as cam from "@mediapipe/camera_utils";
-import * as Hands from "@mediapipe/hands";
-import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
+// npm install @mediapipe/hands @mediapipe/drawing_utils @mediapipe/camera_utils
 
-export default function PracticeMode() {
+import React, { useEffect, useRef, useState } from "react";
+import BaseLayout from "../components/BaseLayout";
+import { Hands } from "@mediapipe/hands";
+import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
+import * as cam from "@mediapipe/camera_utils";
+import "./PracticeMode.css";
+
+const PracticeMode = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const [prediction, setPrediction] = useState(null);
+  const [prediction, setPrediction] = useState("");
+  const [targetLetter, setTargetLetter] = useState("A");
+  const [feedback, setFeedback] = useState("");
 
-  // Flag to avoid overlapping backend requests
-  let isSending = false;
+  const letters = ["A", "B", "C"]; // extend this list as needed
 
+  const getRandomLetter = () => {
+    let random;
+    do {
+      random = letters[Math.floor(Math.random() * letters.length)];
+    } while (random === targetLetter);
+    return random;
+  };
+
+  // Setup Mediapipe Hands + camera
   useEffect(() => {
-    const videoElement = videoRef.current;
-    const canvasElement = canvasRef.current;
-    const canvasCtx = canvasElement.getContext("2d");
-
-    const hands = new Hands.Hands({
+    const hands = new Hands({
       locateFile: (file) =>
         `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
     });
@@ -28,6 +38,7 @@ export default function PracticeMode() {
       minTrackingConfidence: 0.7,
     });
 
+    let isSending = false;
     hands.onResults(async (results) => {
       // Always draw the camera feed smoothly
       canvasCtx.save();
@@ -79,43 +90,71 @@ export default function PracticeMode() {
       canvasCtx.restore();
     });
 
-    // Setup camera
-    const camera = new cam.Camera(videoElement, {
-      onFrame: async () => {
-        await hands.send({ image: videoElement });
-      },
-      width: 640,
-      height: 480,
-    });
-    camera.start();
+    if (videoRef.current) {
+      const camera = new cam.Camera(videoRef.current, {
+        onFrame: async () => {
+          await hands.send({ image: videoRef.current });
+        },
+        width: 640,
+        height: 480,
+      });
+      camera.start();
+    }
+  }, [targetLetter]);
+
+  // Change target letter every 5s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTargetLetter(getRandomLetter());
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
-      <h1 className="text-2xl font-bold mb-4">Practice Mode</h1>
+    <BaseLayout title="Practice Mode">
+      <div className="video-card">
+        <h2 className="practice-title">
+          Practice your ASL alphabet signs with real-time feedback
+        </h2>
 
-      <video
-        ref={videoRef}
-        className="hidden"
-        autoPlay
-        playsInline
-        muted
-        width="640"
-        height="480"
-      />
+        {/* hidden video for mediapipe */}
+        <video
+          ref={videoRef}
+          className="video-frame"
+          width="640"
+          height="480"
+          autoPlay
+          muted
+          playsInline
+          style={{ display: "none" }}
+        />
+        {/* canvas that shows landmarks + live feed */}
+        <canvas
+          ref={canvasRef}
+          className="video-frame"
+          width="640"
+          height="480"
+        />
 
-      <canvas
-        ref={canvasRef}
-        className="rounded-xl shadow-lg border border-gray-700"
-        width="640"
-        height="480"
-      />
-
-      {prediction && (
-        <p className="mt-4 text-lg">
-          Predicted Letter: <span className="font-bold">{prediction}</span>
-        </p>
-      )}
-    </div>
+        <div className="challenge-card">
+          <h3>
+            Prediction: <span>{prediction || "Detecting..."}</span>
+          </h3>
+          <h3>
+            Target Letter: <span>{targetLetter}</span>
+          </h3>
+          <h3
+            style={{
+              color: feedback.startsWith("✅") ? "green" : "red",
+              fontWeight: "bold",
+            }}
+          >
+            {feedback}
+          </h3>
+        </div>
+      </div>
+    </BaseLayout>
   );
-}
+};
+
+export default PracticeMode;
