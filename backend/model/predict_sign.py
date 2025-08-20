@@ -1,64 +1,58 @@
-# predict_sign.py
+import cv2
+import mediapipe as mp
 import numpy as np
 import tensorflow as tf
-import os
-import sys
-import traceback
 
-# Paths
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "model", "sign_language_model.h5")
-LABELS_PATH = os.path.join(os.path.dirname(__file__), "model", "label_classes.npy")
+# Load model once at startup
+model = tf.keras.models.load_model("model/sign_language_model.h5")
 
-# Debug print function
-def debug_log(message):
-    print(f"[DEBUG] {message}", flush=True)
+# Mediapipe Hands
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(
+    static_image_mode=False,
+    max_num_hands=1,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5
+)
+mp_drawing = mp.solutions.drawing_utils
 
-# Load model and labels
-try:
-    debug_log("Loading model...")
-    model = tf.keras.models.load_model(MODEL_PATH)
-    debug_log(f"Model loaded successfully from {MODEL_PATH}")
+# Labels for ISL (A-Z)
+labels = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-    debug_log("Loading label classes...")
-    label_classes = np.load(LABELS_PATH, allow_pickle=True)
-    debug_log(f"Labels loaded successfully: {label_classes}")
 
-except Exception as e:
-    debug_log("ERROR while loading model or labels")
-    traceback.print_exc()
-    model = None
-    label_classes = []
-
-def predict_sign(landmarks):
+def extract_keypoints(image):
     """
-    Predict sign from landmarks.
+    Extract hand landmarks from a frame using MediaPipe.
+    Returns a numpy array of 42 values (x,y for 21 points).
     """
-    try:
-        if model is None or len(label_classes) == 0:
-            return {"error": "Model or labels not loaded"}
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    results = hands.process(image_rgb)
 
-        debug_log(f"Raw landmarks input: {landmarks[:5]}... (len={len(landmarks)})")
+    if results.multi_hand_landmarks:
+        landmarks = []
+        for lm in results.multi_hand_landmarks[0].landmark:
+            landmarks.extend([lm.x, lm.y])
+        return np.array(landmarks)
+    else:
+        return None
 
-        # Convert landmarks to numpy and reshape
-        landmarks = np.array(landmarks).flatten()
-        debug_log(f"After flatten: shape={landmarks.shape}")
 
-        # Expand dims for model
-        input_data = np.expand_dims(landmarks, axis=0)
-        debug_log(f"After expand_dims: shape={input_data.shape}")
+def predict_sign(frame):
+    """
+    Takes a frame, extracts keypoints, predicts sign, and returns best match.
+    """
+    keypoints = extract_keypoints(frame)
+    if keypoints is None:
+        return None
 
-        # Run prediction
-        preds = model.predict(input_data)
-        debug_log(f"Model prediction: {preds}")
+    # Reshape for model: (1, 42)
+    keypoints = keypoints.reshape(1, -1)
 
-        predicted_class = label_classes[np.argmax(preds)]
-        confidence = float(np.max(preds))
+    # Predict
+    preds = model.predict(keypoints, verbose=0)
+    pred_idx = np.argmax(preds)
+    confidence = preds[0][pred_idx]
 
-        debug_log(f"Predicted: {predicted_class}, Confidence: {confidence}")
-
-        return {"prediction": str(predicted_class), "confidence": confidence}
-
-    except Exception as e:
-        debug_log("ERROR inside predict_sign")
-        traceback.print_exc()
-        return {"error": str(e), "traceback": traceback.format_exc()}
+    if confidence < 0.7:  # threshold
+        return None
+    return labels[pred_idx]
