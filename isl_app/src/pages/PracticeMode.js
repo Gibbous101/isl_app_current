@@ -1,13 +1,31 @@
+// src/pages/PracticeMode.js
+// npm install @mediapipe/hands @mediapipe/drawing_utils @mediapipe/camera_utils
+
 import React, { useEffect, useRef, useState } from "react";
+import BaseLayout from "../components/BaseLayout";
 import { Hands } from "@mediapipe/hands";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import * as cam from "@mediapipe/camera_utils";
+import "./PracticeMode.css";
 
-export default function PracticeMode() {
+const PracticeMode = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [prediction, setPrediction] = useState("");
+  const [targetLetter, setTargetLetter] = useState("A");
+  const [feedback, setFeedback] = useState("");
 
+  const letters = ["A", "B", "C"]; // extend this list as needed
+
+  const getRandomLetter = () => {
+    let random;
+    do {
+      random = letters[Math.floor(Math.random() * letters.length)];
+    } while (random === targetLetter);
+    return random;
+  };
+
+  // Setup Mediapipe Hands + camera
   useEffect(() => {
     const hands = new Hands({
       locateFile: (file) =>
@@ -39,29 +57,46 @@ export default function PracticeMode() {
           lm.z,
         ]);
 
-        // ✅ Send landmarks to backend
         try {
-          const res = await fetch("http://localhost:5000/predict_landmarks", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ landmarks }),
-          });
+          const res = await fetch(
+            "https://isl-app-backend.onrender.com/predict_frame",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ landmarks }),
+            }
+          );
+
           const data = await res.json();
           if (data.predicted) {
-            setPrediction(data.predicted);
+            const predictedLetter = data.predicted.toUpperCase();
+            setPrediction(predictedLetter);
+            setFeedback(
+              predictedLetter === targetLetter
+                ? "✅ Correct!"
+                : "❌ Try Again!"
+            );
           }
         } catch (err) {
           console.error("Prediction error:", err);
+          setFeedback("❌ Error detecting");
         }
 
-        // Draw hand landmarks on canvas
-        drawConnectors(canvasCtx, results.multiHandLandmarks[0], Hands.HAND_CONNECTIONS, { color: "black", lineWidth: 2 });
-        drawLandmarks(canvasCtx, results.multiHandLandmarks[0], { color: "red", lineWidth: 1 });
+        drawConnectors(
+          canvasCtx,
+          results.multiHandLandmarks[0],
+          Hands.HAND_CONNECTIONS,
+          { color: "black", lineWidth: 2 }
+        );
+        drawLandmarks(canvasCtx, results.multiHandLandmarks[0], {
+          color: "red",
+          lineWidth: 1,
+        });
       }
       canvasCtx.restore();
     });
 
-    if (typeof videoRef.current !== "undefined" && videoRef.current !== null) {
+    if (videoRef.current) {
       const camera = new cam.Camera(videoRef.current, {
         onFrame: async () => {
           await hands.send({ image: videoRef.current });
@@ -71,13 +106,61 @@ export default function PracticeMode() {
       });
       camera.start();
     }
+  }, [targetLetter]);
+
+  // Change target letter every 5s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTargetLetter(getRandomLetter());
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="flex flex-col items-center">
-      <video ref={videoRef} className="hidden" width="640" height="480" autoPlay />
-      <canvas ref={canvasRef} className="border rounded-xl shadow-lg" width="640" height="480" />
-      <h2 className="mt-4 text-xl font-bold">Prediction: {prediction}</h2>
-    </div>
+    <BaseLayout title="Practice Mode">
+      <div className="video-card">
+        <h2 className="practice-title">
+          Practice your ASL alphabet signs with real-time feedback
+        </h2>
+
+        {/* hidden video for mediapipe */}
+        <video
+          ref={videoRef}
+          className="video-frame"
+          width="640"
+          height="480"
+          autoPlay
+          muted
+          playsInline
+          style={{ display: "none" }}
+        />
+        {/* canvas that shows landmarks + live feed */}
+        <canvas
+          ref={canvasRef}
+          className="video-frame"
+          width="640"
+          height="480"
+        />
+
+        <div className="challenge-card">
+          <h3>
+            Prediction: <span>{prediction || "Detecting..."}</span>
+          </h3>
+          <h3>
+            Target Letter: <span>{targetLetter}</span>
+          </h3>
+          <h3
+            style={{
+              color: feedback.startsWith("✅") ? "green" : "red",
+              fontWeight: "bold",
+            }}
+          >
+            {feedback}
+          </h3>
+        </div>
+      </div>
+    </BaseLayout>
   );
-}
+};
+
+export default PracticeMode;
