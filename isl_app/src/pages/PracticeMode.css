@@ -8,12 +8,7 @@
   text-align: center;
 }
 
-.video-frame {
-  width: 100%;
-  height: auto;
-  border-radius: 8px;
-  margin-top: 1rem;
-}
+
 
 .error-toast {
   background-color: #ffe0e0;
@@ -39,24 +34,43 @@
   margin-bottom: 1rem;
 }
 
-.challenge-card {
-  margin-top: 1rem;
-}
 
-.challenge-card span {
-  font-weight: bold;
-}
 
-.video-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: auto;
-  padding: 2rem;
-}
 
 .video-frame {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
+}
+.video-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.video-frame {
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 4 / 3;   /* keeps correct camera shape */
+  border-radius: 12px;
+  object-fit: cover;     /* crop neatly if needed */
+  background: black;     /* fallback if camera is loading */
+}
+
+.challenge-card {
+  margin-top: 20px;
+  padding: 15px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  text-align: center;
+  width: 100%;
+  max-width: 500px;
 }
