@@ -1,35 +1,13 @@
-// npm install @mediapipe/hands @mediapipe/drawing_utils @mediapipe/camera_utils
-
-import React, { useState, useEffect, useRef } from "react";
-import BaseLayout from "../components/BaseLayout";
+import React, { useEffect, useRef, useState } from "react";
 import { Hands } from "@mediapipe/hands";
-import { Camera } from "@mediapipe/camera_utils";
-import "./PracticeMode.css";
+import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
+import * as cam from "@mediapipe/camera_utils";
 
-const PracticeMode = () => {
+export default function PracticeMode() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-
   const [prediction, setPrediction] = useState("");
-  const [targetLetter, setTargetLetter] = useState("A");
-  const [feedback, setFeedback] = useState("");
 
-  const targetRef = useRef(targetLetter);
-  useEffect(() => {
-    targetRef.current = targetLetter;
-  }, [targetLetter]);
-
-  const letters = ["A", "B", "C"]; // Add all letters as needed
-
-  const getRandomLetter = () => {
-    let random;
-    do {
-      random = letters[Math.floor(Math.random() * letters.length)];
-    } while (random === targetLetter);
-    return random;
-  };
-
-  // Initialize Mediapipe Hands
   useEffect(() => {
     const hands = new Hands({
       locateFile: (file) =>
@@ -38,100 +16,68 @@ const PracticeMode = () => {
 
     hands.setOptions({
       maxNumHands: 1,
-      modelComplexity: 1,
       minDetectionConfidence: 0.7,
       minTrackingConfidence: 0.7,
     });
 
-    let sending = false;
+    hands.onResults(async (results) => {
+      const canvasCtx = canvasRef.current.getContext("2d");
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      canvasCtx.drawImage(
+        results.image,
+        0,
+        0,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
 
-hands.onResults(async (results) => {
-  if (!results.multiHandLandmarks || sending) return;
-  sending = true;
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0].flatMap((lm) => [
+          lm.x,
+          lm.y,
+          lm.z,
+        ]);
 
-  const landmarks = results.multiHandLandmarks[0]
-    .flatMap(p => [p.x, p.y, p.z])
-    .slice(0, 63);
+        // ✅ Send landmarks to backend
+        try {
+          const res = await fetch("http://localhost:5000/predict_landmarks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ landmarks }),
+          });
+          const data = await res.json();
+          if (data.predicted) {
+            setPrediction(data.predicted);
+          }
+        } catch (err) {
+          console.error("Prediction error:", err);
+        }
 
-  try {
-    const res = await fetch("https://isl-app-backend.onrender.com/predict_current", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ landmarks }),
+        // Draw hand landmarks on canvas
+        drawConnectors(canvasCtx, results.multiHandLandmarks[0], Hands.HAND_CONNECTIONS, { color: "black", lineWidth: 2 });
+        drawLandmarks(canvasCtx, results.multiHandLandmarks[0], { color: "red", lineWidth: 1 });
+      }
+      canvasCtx.restore();
     });
-    const data = await res.json();
 
-    if (data.confirmed) {
-      const predictedLetter = data.predicted.trim().toUpperCase();
-      setPrediction(predictedLetter);
-      setFeedback(predictedLetter === targetRef.current.toUpperCase() ? "✅ Correct!" : "❌ Try Again!");
-    } else {
-      setPrediction("");
-      setFeedback("Detecting...");
+    if (typeof videoRef.current !== "undefined" && videoRef.current !== null) {
+      const camera = new cam.Camera(videoRef.current, {
+        onFrame: async () => {
+          await hands.send({ image: videoRef.current });
+        },
+        width: 640,
+        height: 480,
+      });
+      camera.start();
     }
-  } catch (err) {
-    console.error(err);
-    setFeedback("❌ Error detecting");
-  }
-
-  sending = false;
-});
-
-    const camera = new Camera(videoRef.current, {
-      onFrame: async () => {
-        await hands.send({ image: videoRef.current });
-      },
-      width: 640,
-      height: 480,
-    });
-    camera.start();
-
-    return () => {
-      camera.stop();
-    };
-  }, []);
-
-  // Change target letter every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTargetLetter(getRandomLetter());
-    }, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   return (
-    <BaseLayout title="Practice Mode">
-      <div className="video-card">
-        <h2 className="practice-title">
-          Practice your ASL alphabet signs with real-time feedback
-        </h2>
-        <video
-          ref={videoRef}
-          className="video-frame"
-          autoPlay
-          muted
-          playsInline
-        />
-        <canvas ref={canvasRef} style={{ display: "none" }} />
-        <div className="challenge-card">
-          <h3>
-            Prediction: <span>{prediction || "Detecting..."}</span>
-          </h3>
-          <h3>
-            Target Letter: <span>{targetLetter}</span>
-          </h3>
-          <h3
-            style={{
-              color: feedback.startsWith("✅") ? "green" : "red",
-              fontWeight: "bold",
-            }}
-          >
-            {feedback}
-          </h3>
-        </div>
-      </div>
-    </BaseLayout>
+    <div className="flex flex-col items-center">
+      <video ref={videoRef} className="hidden" width="640" height="480" autoPlay />
+      <canvas ref={canvasRef} className="border rounded-xl shadow-lg" width="640" height="480" />
+      <h2 className="mt-4 text-xl font-bold">Prediction: {prediction}</h2>
+    </div>
   );
-};
-
-export default PracticeMode;
+}
