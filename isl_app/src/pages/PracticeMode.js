@@ -1,8 +1,7 @@
 // src/pages/PracticeMode.js
-
 import React, { useEffect, useRef, useState } from "react";
 import BaseLayout from "../components/BaseLayout";
-import { Hands } from "@mediapipe/hands";
+import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import * as cam from "@mediapipe/camera_utils";
 import "./PracticeMode.css";
@@ -24,6 +23,7 @@ const PracticeMode = () => {
     return random;
   };
 
+  // ✅ Setup camera + Mediapipe Hands ONCE
   useEffect(() => {
     const hands = new Hands({
       locateFile: (file) =>
@@ -42,13 +42,11 @@ const PracticeMode = () => {
       const canvasElement = canvasRef.current;
       const canvasCtx = canvasElement.getContext("2d");
 
-      // Clear canvas
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-      // Only draw landmarks (video already shown separately)
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         for (const landmarks of results.multiHandLandmarks) {
-          drawConnectors(canvasCtx, landmarks, Hands.HAND_CONNECTIONS, {
+          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
             color: "#00FF00",
             lineWidth: 2,
           });
@@ -70,6 +68,13 @@ const PracticeMode = () => {
               .then((data) => {
                 if (data.predicted) {
                   setPrediction(data.predicted);
+
+                  // ✅ Give instant feedback
+                  if (data.predicted === targetLetter) {
+                    setFeedback("✅ Correct!");
+                  } else {
+                    setFeedback("❌ Try again");
+                  }
                 }
               })
               .catch((err) => console.error("Error:", err))
@@ -91,29 +96,46 @@ const PracticeMode = () => {
       });
       camera.start();
     }
-  }, [targetLetter]);
 
+    // Cleanup on unmount
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
+  }, []); // 👈 runs only once (no reloads)
+
+  // ✅ Change target letter every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setTargetLetter(getRandomLetter());
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [targetLetter]);
 
   return (
     <BaseLayout title="Practice Mode">
       <div className="video-card">
         <h2 className="practice-title">
-          Practice your ASL alphabet signs with real-time feedback
+          Practice your ISL alphabet signs with real-time feedback
         </h2>
-        <video
-          ref={videoRef}
-          className="video-frame"
-          autoPlay
-          muted
-          playsInline
-        />
-        <canvas ref={canvasRef} style={{ display: "none" }} />
+        <div className="video-wrapper">
+          <video
+            ref={videoRef}
+            className="video-frame"
+            autoPlay
+            muted
+            playsInline
+          />
+          {/* overlay canvas for landmarks */}
+          <canvas
+            ref={canvasRef}
+            className="overlay-canvas"
+            width={640}
+            height={480}
+          />
+        </div>
+
         <div className="challenge-card">
           <h3>
             Prediction: <span>{prediction || "Detecting..."}</span>
