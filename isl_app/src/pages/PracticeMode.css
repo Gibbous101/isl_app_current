@@ -9,10 +9,7 @@
 }
 
 .video-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 1rem auto;
+  height: 500px;
 }
 
 .error-toast {
