@@ -10,7 +10,6 @@ const PracticeMode = () => {
   const [targetLetter, setTargetLetter] = useState("A");
   const [feedback, setFeedback] = useState("");
 
-  // Store latest target letter in a ref so we can access it inside the async loop
   const targetRef = useRef(targetLetter);
   useEffect(() => {
     targetRef.current = targetLetter;
@@ -26,6 +25,7 @@ const PracticeMode = () => {
     return random;
   };
 
+  // Start camera and prediction
   useEffect(() => {
     let started = false;
     navigator.mediaDevices
@@ -45,6 +45,7 @@ const PracticeMode = () => {
       .catch((err) => console.error("Camera error:", err));
   }, []);
 
+  // Continuous capture + prediction (with resize)
   const captureAndPredict = async () => {
     const video = videoRef.current;
     if (!video || video.readyState < 2) {
@@ -52,13 +53,16 @@ const PracticeMode = () => {
       return;
     }
 
+    // Resize canvas to 224x224 for the model
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.width = 224;
+    canvas.height = 224;
 
-    const frameBase64 = canvas.toDataURL("image/jpeg");
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, 224, 224);
+
+    // Use higher quality JPEG
+    const frameBase64 = canvas.toDataURL("image/jpeg", 0.95);
 
     try {
       const res = await fetch(
@@ -69,13 +73,12 @@ const PracticeMode = () => {
           body: JSON.stringify({ frame: frameBase64 }),
         }
       );
-
       const data = await res.json();
+
       if (data.confirmed) {
         const predictedLetter = data.predicted.trim().toUpperCase();
         setPrediction(predictedLetter);
 
-        // compare with *latest* target letter
         if (predictedLetter === targetRef.current.toUpperCase()) {
           setFeedback("✅ Correct!");
         } else {
@@ -85,19 +88,19 @@ const PracticeMode = () => {
         setPrediction("");
         setFeedback("Detecting...");
       }
-    } catch (error) {
-      console.error("Error fetching prediction:", error);
+    } catch (err) {
+      console.error("Error fetching prediction:", err);
       setFeedback("❌ Error detecting");
     }
 
     requestAnimationFrame(captureAndPredict);
   };
 
+  // Change target letter every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setTargetLetter(getRandomLetter());
     }, 5000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -107,12 +110,23 @@ const PracticeMode = () => {
         <h2 className="practice-title">
           Practice your ASL alphabet signs with real-time feedback
         </h2>
-        <video ref={videoRef} className="video-frame" autoPlay muted playsInline />
+        <video
+          ref={videoRef}
+          className="video-frame"
+          autoPlay
+          muted
+          playsInline
+        />
         <canvas ref={canvasRef} style={{ display: "none" }} />
         <div className="challenge-card">
           <h3>Prediction: <span>{prediction || "Detecting..."}</span></h3>
           <h3>Target Letter: <span>{targetLetter}</span></h3>
-          <h3 style={{ color: feedback.startsWith("✅") ? "green" : "red", fontWeight: "bold" }}>
+          <h3
+            style={{
+              color: feedback.startsWith("✅") ? "green" : "red",
+              fontWeight: "bold",
+            }}
+          >
             {feedback}
           </h3>
         </div>
