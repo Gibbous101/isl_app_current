@@ -1,7 +1,8 @@
 // src/pages/PracticeMode.js
+
 import React, { useEffect, useRef, useState } from "react";
 import BaseLayout from "../components/BaseLayout";
-import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
+import { Hands } from "@mediapipe/hands";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import * as cam from "@mediapipe/camera_utils";
 import "./PracticeMode.css";
@@ -14,6 +15,7 @@ const PracticeMode = () => {
   const [feedback, setFeedback] = useState("");
 
   const letters = ["A", "B", "C"]; // extend this list as needed
+
   const getRandomLetter = () => {
     let random;
     do {
@@ -34,19 +36,19 @@ const PracticeMode = () => {
       minTrackingConfidence: 0.7,
     });
 
-    let latestLandmarks = null;
+    let isSending = false;
 
-    hands.onResults((results) => {
+    hands.onResults(async (results) => {
       const canvasElement = canvasRef.current;
       const canvasCtx = canvasElement.getContext("2d");
 
-      // Clear + draw
+      // Clear canvas
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
+      // Only draw landmarks (video already shown separately)
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         for (const landmarks of results.multiHandLandmarks) {
-          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+          drawConnectors(canvasCtx, landmarks, Hands.HAND_CONNECTIONS, {
             color: "#00FF00",
             lineWidth: 2,
           });
@@ -54,10 +56,28 @@ const PracticeMode = () => {
             color: "#FF0000",
             lineWidth: 1,
           });
+
+          if (!isSending) {
+            isSending = true;
+            const landmarkData = landmarks.map((lm) => [lm.x, lm.y, lm.z]);
+
+            fetch("https://isl-app-backend.onrender.com/predict_frame", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ landmarks: landmarkData }),
+            })
+              .then((res) => res.json())
+              .then((data) => {
+                if (data.predicted) {
+                  setPrediction(data.predicted);
+                }
+              })
+              .catch((err) => console.error("Error:", err))
+              .finally(() => {
+                isSending = false;
+              });
+          }
         }
-        latestLandmarks = results.multiHandLandmarks[0]; // save for backend
-      } else {
-        latestLandmarks = null;
       }
     });
 
@@ -71,33 +91,6 @@ const PracticeMode = () => {
       });
       camera.start();
     }
-
-    // 🔑 Separate interval for sending to backend
-    const sendInterval = setInterval(() => {
-      if (latestLandmarks) {
-        const landmarkData = latestLandmarks.map((lm) => [lm.x, lm.y, lm.z]);
-
-        fetch("https://isl-app-backend.onrender.com/predict_frame", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ landmarks: landmarkData }),
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.predicted) {
-              setPrediction(data.predicted);
-              setFeedback(
-                data.predicted === targetLetter
-                  ? "✅ Correct!"
-                  : "❌ Try again!"
-              );
-            }
-          })
-          .catch((err) => console.error("Error:", err));
-      }
-    }, 800); // send every 800ms
-
-    return () => clearInterval(sendInterval);
   }, [targetLetter]);
 
   useEffect(() => {
@@ -111,14 +104,16 @@ const PracticeMode = () => {
     <BaseLayout title="Practice Mode">
       <div className="video-card">
         <h2 className="practice-title">
-          Practice your ISL alphabet signs with real-time feedback
+          Practice your ASL alphabet signs with real-time feedback
         </h2>
-        <canvas
-          ref={canvasRef}
+        <video
+          ref={videoRef}
           className="video-frame"
-          width={640}
-          height={480}
+          autoPlay
+          muted
+          playsInline
         />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
         <div className="challenge-card">
           <h3>
             Prediction: <span>{prediction || "Detecting..."}</span>
