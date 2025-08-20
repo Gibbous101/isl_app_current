@@ -1,9 +1,8 @@
 // src/pages/PracticeMode.js
-// npm install @mediapipe/hands @mediapipe/drawing_utils @mediapipe/camera_utils
 
 import React, { useEffect, useRef, useState } from "react";
 import BaseLayout from "../components/BaseLayout";
-import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
+import { Hands } from "@mediapipe/hands";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import * as cam from "@mediapipe/camera_utils";
 import "./PracticeMode.css";
@@ -25,7 +24,6 @@ const PracticeMode = () => {
     return random;
   };
 
-  // Setup Mediapipe Hands + camera
   useEffect(() => {
     const hands = new Hands({
       locateFile: (file) =>
@@ -44,20 +42,13 @@ const PracticeMode = () => {
       const canvasElement = canvasRef.current;
       const canvasCtx = canvasElement.getContext("2d");
 
-      // Always draw the camera feed smoothly
-      canvasCtx.save();
+      // Clear canvas
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.drawImage(
-        results.image,
-        0,
-        0,
-        canvasElement.width,
-        canvasElement.height
-      );
 
+      // Only draw landmarks (video already shown separately)
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         for (const landmarks of results.multiHandLandmarks) {
-          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+          drawConnectors(canvasCtx, landmarks, Hands.HAND_CONNECTIONS, {
             color: "#00FF00",
             lineWidth: 2,
           });
@@ -66,10 +57,8 @@ const PracticeMode = () => {
             lineWidth: 1,
           });
 
-          // Send landmarks only if not already sending
           if (!isSending) {
             isSending = true;
-
             const landmarkData = landmarks.map((lm) => [lm.x, lm.y, lm.z]);
 
             fetch("https://isl-app-backend.onrender.com/predict_frame", {
@@ -81,24 +70,15 @@ const PracticeMode = () => {
               .then((data) => {
                 if (data.predicted) {
                   setPrediction(data.predicted);
-
-                  // Simple feedback check
-                  if (data.predicted === targetLetter) {
-                    setFeedback(`✅ Correct! It's ${data.predicted}`);
-                  } else {
-                    setFeedback(`❌ Try Again! You showed ${data.predicted}`);
-                  }
                 }
               })
               .catch((err) => console.error("Error:", err))
               .finally(() => {
-                isSending = false; // Allow next request
+                isSending = false;
               });
           }
         }
       }
-
-      canvasCtx.restore();
     });
 
     if (videoRef.current) {
@@ -113,7 +93,6 @@ const PracticeMode = () => {
     }
   }, [targetLetter]);
 
-  // Change target letter every 5s
   useEffect(() => {
     const interval = setInterval(() => {
       setTargetLetter(getRandomLetter());
@@ -128,25 +107,25 @@ const PracticeMode = () => {
           Practice your ISL alphabet signs with real-time feedback
         </h2>
 
-        {/* hidden video for mediapipe */}
-        <video
-          ref={videoRef}
-          className="video-frame"
-          width="640"
-          height="480"
-          autoPlay
-          muted
-          playsInline
-          style={{ display: "none" }}
-        />
-
-        {/* canvas that shows landmarks + live feed */}
-        <canvas
-          ref={canvasRef}
-          className="video-frame"
-          width="640"
-          height="480"
-        />
+        <div className="video-container">
+          {/* visible video */}
+          <video
+            ref={videoRef}
+            className="video-frame"
+            width="640"
+            height="480"
+            autoPlay
+            muted
+            playsInline
+          />
+          {/* overlay canvas */}
+          <canvas
+            ref={canvasRef}
+            className="overlay-canvas"
+            width="640"
+            height="480"
+          />
+        </div>
 
         <div className="challenge-card">
           <h3>
