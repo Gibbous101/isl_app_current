@@ -1,5 +1,5 @@
 # backend/app.py
-from backend.model.predict_sign import app  # Import the Flask app from predict_sign.py
+from model.predict_sign import app  # Import the Flask app from predict_sign.py
 
 if __name__ == "__main__":
     import os
