@@ -104,29 +104,16 @@ const PracticeMode = () => {
     <BaseLayout title="Practice Mode">
       <div className="video-card">
         <h2 className="practice-title">
-          Practice your ISL alphabet signs with real-time feedback
+          Practice your ASL alphabet signs with real-time feedback
         </h2>
-
-        <div className="video-container">
-          {/* visible video */}
-          <video
-            ref={videoRef}
-            className="video-frame"
-            width="640"
-            height="480"
-            autoPlay
-            muted
-            playsInline
-          />
-          {/* overlay canvas */}
-          <canvas
-            ref={canvasRef}
-            className="overlay-canvas"
-            width="640"
-            height="480"
-          />
-        </div>
-
+        <video
+          ref={videoRef}
+          className="video-frame"
+          autoPlay
+          muted
+          playsInline
+        />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
         <div className="challenge-card">
           <h3>
             Prediction: <span>{prediction || "Detecting..."}</span>
