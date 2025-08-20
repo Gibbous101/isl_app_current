@@ -1,9 +1,8 @@
 // src/pages/PracticeMode.js
-// npm install @mediapipe/hands @mediapipe/drawing_utils @mediapipe/camera_utils
 
 import React, { useEffect, useRef, useState } from "react";
 import BaseLayout from "../components/BaseLayout";
-import { Hands } from "@mediapipe/hands";
+import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import * as cam from "@mediapipe/camera_utils";
 import "./PracticeMode.css";
@@ -15,7 +14,7 @@ const PracticeMode = () => {
   const [targetLetter, setTargetLetter] = useState("A");
   const [feedback, setFeedback] = useState("");
 
-  const letters = ["A", "B", "C"]; // extend this list as needed
+  const letters = ["A", "B", "C"]; // extend this list
 
   const getRandomLetter = () => {
     let random;
@@ -25,7 +24,6 @@ const PracticeMode = () => {
     return random;
   };
 
-  // Setup Mediapipe Hands + camera
   useEffect(() => {
     const hands = new Hands({
       locateFile: (file) =>
@@ -39,16 +37,13 @@ const PracticeMode = () => {
     });
 
     hands.onResults(async (results) => {
-      const canvasCtx = canvasRef.current.getContext("2d");
+      const canvasEl = canvasRef.current;
+      const canvasCtx = canvasEl.getContext("2d");
+
+      // Clear + draw video frame
       canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      canvasCtx.drawImage(
-        results.image,
-        0,
-        0,
-        canvasRef.current.width,
-        canvasRef.current.height
-      );
+      canvasCtx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+      canvasCtx.drawImage(results.image, 0, 0, canvasEl.width, canvasEl.height);
 
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         const landmarks = results.multiHandLandmarks[0].flatMap((lm) => [
@@ -82,17 +77,17 @@ const PracticeMode = () => {
           setFeedback("❌ Error detecting");
         }
 
-        drawConnectors(
-          canvasCtx,
-          results.multiHandLandmarks[0],
-          Hands.HAND_CONNECTIONS,
-          { color: "black", lineWidth: 2 }
-        );
+        // Draw landmarks
+        drawConnectors(canvasCtx, results.multiHandLandmarks[0], HAND_CONNECTIONS, {
+          color: "black",
+          lineWidth: 2,
+        });
         drawLandmarks(canvasCtx, results.multiHandLandmarks[0], {
           color: "red",
           lineWidth: 1,
         });
       }
+
       canvasCtx.restore();
     });
 
@@ -108,7 +103,6 @@ const PracticeMode = () => {
     }
   }, [targetLetter]);
 
-  // Change target letter every 5s
   useEffect(() => {
     const interval = setInterval(() => {
       setTargetLetter(getRandomLetter());
@@ -123,7 +117,7 @@ const PracticeMode = () => {
           Practice your ASL alphabet signs with real-time feedback
         </h2>
 
-        {/* hidden video for mediapipe */}
+        {/* Show video for debugging */}
         <video
           ref={videoRef}
           className="video-frame"
@@ -132,14 +126,16 @@ const PracticeMode = () => {
           autoPlay
           muted
           playsInline
-          style={{ display: "none" }}
+          style={{ display: "block" }} // 👈 changed from "none"
         />
-        {/* canvas that shows landmarks + live feed */}
+
+        {/* Canvas that overlays landmarks */}
         <canvas
           ref={canvasRef}
           className="video-frame"
           width="640"
           height="480"
+          style={{ position: "absolute", top: 0, left: 0 }}
         />
 
         <div className="challenge-card">
