@@ -1,5 +1,9 @@
+// npm install @mediapipe/hands @mediapipe/drawing_utils @mediapipe/camera_utils
+
 import React, { useState, useEffect, useRef } from "react";
 import BaseLayout from "../components/BaseLayout";
+import { Hands } from "@mediapipe/hands";
+import { Camera } from "@mediapipe/camera_utils";
 import "./PracticeMode.css";
 
 const PracticeMode = () => {
@@ -15,7 +19,7 @@ const PracticeMode = () => {
     targetRef.current = targetLetter;
   }, [targetLetter]);
 
-  const letters = ["A", "B", "C"];
+  const letters = ["A", "B", "C"]; // Add all letters as needed
 
   const getRandomLetter = () => {
     let random;
@@ -25,76 +29,73 @@ const PracticeMode = () => {
     return random;
   };
 
-  // Start camera and prediction
+  // Initialize Mediapipe Hands
   useEffect(() => {
-    let started = false;
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
-      .then((stream) => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            if (!started) {
-              started = true;
-              videoRef.current.play();
-              captureAndPredict();
+    const hands = new Hands({
+      locateFile: (file) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.7,
+    });
+
+    hands.onResults(async (results) => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0]
+          .flatMap((p) => [p.x, p.y, p.z])
+          .slice(0, 63); // Ensure length is 63
+
+        try {
+          const res = await fetch(
+            "https://isl-app-backend.onrender.com/predict_current",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ landmarks }),
             }
-          };
-        }
-      })
-      .catch((err) => console.error("Camera error:", err));
-  }, []);
+          );
+          const data = await res.json();
 
-  // Continuous capture + prediction (with resize)
-  const captureAndPredict = async () => {
-    const video = videoRef.current;
-    if (!video || video.readyState < 2) {
-      requestAnimationFrame(captureAndPredict);
-      return;
-    }
+          if (data.confirmed) {
+            const predictedLetter = data.predicted.trim().toUpperCase();
+            setPrediction(predictedLetter);
 
-    // Resize canvas to 224x224 for the model
-    const canvas = canvasRef.current;
-    canvas.width = 224;
-    canvas.height = 224;
-
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, 224, 224);
-
-    // Use higher quality JPEG
-    const frameBase64 = canvas.toDataURL("image/jpeg", 0.95);
-
-    try {
-      const res = await fetch(
-        "https://isl-app-backend.onrender.com/predict_current",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ frame: frameBase64 }),
-        }
-      );
-      const data = await res.json();
-
-      if (data.confirmed) {
-        const predictedLetter = data.predicted.trim().toUpperCase();
-        setPrediction(predictedLetter);
-
-        if (predictedLetter === targetRef.current.toUpperCase()) {
-          setFeedback("✅ Correct!");
-        } else {
-          setFeedback("❌ Try Again!");
+            if (predictedLetter === targetRef.current.toUpperCase()) {
+              setFeedback("✅ Correct!");
+            } else {
+              setFeedback("❌ Try Again!");
+            }
+          } else {
+            setPrediction("");
+            setFeedback("Detecting...");
+          }
+        } catch (err) {
+          console.error("Error fetching prediction:", err);
+          setFeedback("❌ Error detecting");
         }
       } else {
         setPrediction("");
         setFeedback("Detecting...");
       }
-    } catch (err) {
-      console.error("Error fetching prediction:", err);
-      setFeedback("❌ Error detecting");
-    }
+    });
 
-    requestAnimationFrame(captureAndPredict);
-  };
+    const camera = new Camera(videoRef.current, {
+      onFrame: async () => {
+        await hands.send({ image: videoRef.current });
+      },
+      width: 640,
+      height: 480,
+    });
+    camera.start();
+
+    return () => {
+      camera.stop();
+    };
+  }, []);
 
   // Change target letter every 5 seconds
   useEffect(() => {
@@ -119,8 +120,12 @@ const PracticeMode = () => {
         />
         <canvas ref={canvasRef} style={{ display: "none" }} />
         <div className="challenge-card">
-          <h3>Prediction: <span>{prediction || "Detecting..."}</span></h3>
-          <h3>Target Letter: <span>{targetLetter}</span></h3>
+          <h3>
+            Prediction: <span>{prediction || "Detecting..."}</span>
+          </h3>
+          <h3>
+            Target Letter: <span>{targetLetter}</span>
+          </h3>
           <h3
             style={{
               color: feedback.startsWith("✅") ? "green" : "red",

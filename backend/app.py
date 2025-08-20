@@ -1,9 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import base64
-import cv2
-import numpy as np
 import os
+import numpy as np
 import tensorflow as tf
 
 app = Flask(__name__)
@@ -24,25 +22,17 @@ def home():
 def predict_current():
     try:
         data = request.json
-        if "frame" not in data:
-            return jsonify({"confirmed": False, "predicted": "None", "error": "No frame provided"})
+        if "landmarks" not in data:
+            return jsonify({"confirmed": False, "predicted": "None", "error": "No landmarks provided"})
 
-        # Decode base64 to image
-        img_data  = data["frame"].split(",")[1] if "," in data["frame"] else data["frame"]
-        img_bytes = base64.b64decode(img_data)
-        nparr     = np.frombuffer(img_bytes, np.uint8)
-        frame     = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        landmarks = np.array(data["landmarks"], dtype=np.float32)
+        if landmarks.shape[0] != 63:  # 21 points * 3 coordinates
+            return jsonify({"confirmed": False, "predicted": "None", "error": "Invalid landmarks length"})
 
-        if frame is None:
-            return jsonify({"confirmed": False, "predicted": "None", "error": "Invalid frame"})
+        # Reshape for model: (1, 63)
+        landmarks = np.expand_dims(landmarks, axis=0)
 
-        # Resize to 224x224 for the model and normalize if necessary
-        img_resized = cv2.resize(frame, (224, 224))
-        img_resized = img_resized.astype("float32") / 255.0
-        img_resized = np.expand_dims(img_resized, axis=0)
-
-        # Predict letter
-        prediction_index = np.argmax(model.predict(img_resized))
+        prediction_index = np.argmax(model.predict(landmarks))
         predicted_letter = str(label_classes[prediction_index])
 
         return jsonify({"confirmed": True, "predicted": predicted_letter})
