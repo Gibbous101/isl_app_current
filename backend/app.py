@@ -13,42 +13,40 @@ MODEL_DIR = os.path.join(BASE_DIR, "model")
 MODEL_PATH = os.path.join(MODEL_DIR, "sign_language_model.h5")
 LABELS_PATH = os.path.join(MODEL_DIR, "label_classes.npy")
 
-# ---- load model & labels once on boot ----
-model = None
-label_classes = None
+# ---- load model & labels once at startup ----
+try:
+    app.logger.info("[boot] Loading model...")
+    model = tf.keras.models.load_model(MODEL_PATH)
+    label_classes = np.load(LABELS_PATH, allow_pickle=True)
+    app.logger.info("[boot] Model and labels loaded OK")
+except Exception as e:
+    model = None
+    label_classes = None
+    app.logger.error(f"[boot] Failed to load model: {e}")
 
-@app.before_first_request
-def _load_on_first_request():
-    global model, label_classes
-    if model is None:
-        app.logger.info("[boot] Loading model from %s", MODEL_PATH)
-        if not os.path.exists(MODEL_PATH):
-            raise FileNotFoundError(f"Model file missing at {MODEL_PATH}")
-        if not os.path.exists(LABELS_PATH):
-            raise FileNotFoundError(f"Labels file missing at {LABELS_PATH}")
-        model = tf.keras.models.load_model(MODEL_PATH)
-        label_classes = np.load(LABELS_PATH, allow_pickle=True)
-
-# ---- simple health/info routes ----
 @app.route("/", methods=["GET"])
 def root():
-    return jsonify({"ok": True, "service": "isl-backend", "routes": ["/health","/predict_frame"]})
+    return jsonify({
+        "ok": True,
+        "service": "isl-backend",
+        "routes": ["/health", "/predict_frame"]
+    })
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"ok": True})
+    return jsonify({"ok": model is not None})
 
-# ---- prediction route ----
 @app.route("/predict_frame", methods=["POST"])
 def predict_frame():
-    global model, label_classes
+    if model is None or label_classes is None:
+        return jsonify({"error": "Model not loaded"}), 500
+
     try:
         data = request.get_json(force=True) or {}
         arr = data.get("landmarks")
         if arr is None:
             return jsonify({"error": "No landmarks"}), 400
 
-        # expect flat array of length 63
         x = np.array(arr, dtype=np.float32).reshape(1, -1)
         if x.shape[1] != 63:
             return jsonify({"error": f"Expected 63 values, got {x.shape[1]}"}), 400
