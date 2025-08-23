@@ -1,93 +1,67 @@
-from flask import Flask, Response, request, jsonify
+# backend/app.py
+import os
+import numpy as np
+import tensorflow as tf
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-import cv2
-from model.predict_sign import predict_sign
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend
+CORS(app)
 
-# Open webcam / Render will ignore, but we keep it
-camera = cv2.VideoCapture(0)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, "model")
+MODEL_PATH = os.path.join(MODEL_DIR, "sign_language_model.h5")
+LABELS_PATH = os.path.join(MODEL_DIR, "label_classes.npy")
 
-current_target = "A"  # Default target for game mode
+# ---- load model & labels once on boot ----
+model = None
+label_classes = None
 
+@app.before_first_request
+def _load_on_first_request():
+    global model, label_classes
+    if model is None:
+        app.logger.info("[boot] Loading model from %s", MODEL_PATH)
+        if not os.path.exists(MODEL_PATH):
+            raise FileNotFoundError(f"Model file missing at {MODEL_PATH}")
+        if not os.path.exists(LABELS_PATH):
+            raise FileNotFoundError(f"Labels file missing at {LABELS_PATH}")
+        model = tf.keras.models.load_model(MODEL_PATH)
+        label_classes = np.load(LABELS_PATH, allow_pickle=True)
 
-def generate_frames():
-    """ Stream frames for practice mode """
-    while True:
-        success, frame = camera.read()
-        if not success:
-            break
+# ---- simple health/info routes ----
+@app.route("/", methods=["GET"])
+def root():
+    return jsonify({"ok": True, "service": "isl-backend", "routes": ["/health","/predict_frame"]})
 
-        _, buffer = cv2.imencode(".jpg", frame)
-        frame_bytes = buffer.tobytes()
-        yield (b"--frame\r\n"
-               b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"ok": True})
 
+# ---- prediction route ----
+@app.route("/predict_frame", methods=["POST"])
+def predict_frame():
+    global model, label_classes
+    try:
+        data = request.get_json(force=True) or {}
+        arr = data.get("landmarks")
+        if arr is None:
+            return jsonify({"error": "No landmarks"}), 400
 
-@app.route("/video_feed")
-def video_feed():
-    """ Video stream route """
-    return Response(generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
+        # expect flat array of length 63
+        x = np.array(arr, dtype=np.float32).reshape(1, -1)
+        if x.shape[1] != 63:
+            return jsonify({"error": f"Expected 63 values, got {x.shape[1]}"}), 400
 
+        preds = model.predict(x, verbose=0)
+        idx = int(np.argmax(preds, axis=1)[0])
+        predicted = str(label_classes[idx])
 
-@app.route("/predict_current", methods=["POST"])
-def predict_current():
-    """
-    Practice mode - predicts sign from uploaded frame
-    """
-    if "frame" not in request.files:
-        return jsonify({"error": "No frame uploaded"}), 400
-
-    file = request.files["frame"]
-    file_bytes = file.read()
-    np_arr = np.frombuffer(file_bytes, np.uint8)
-
-    frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-    prediction = predict_sign(frame)
-
-    if prediction is None:
-        return jsonify({"confirmed": False, "predicted": "Detecting..."})
-    return jsonify({"confirmed": True, "predicted": prediction})
-
-
-@app.route("/predict_game", methods=["POST"])
-def predict_game():
-    """
-    Game mode - predicts and checks against target letter
-    """
-    global current_target
-
-    if "frame" not in request.files:
-        return jsonify({"error": "No frame uploaded"}), 400
-
-    file = request.files["frame"]
-    file_bytes = file.read()
-    np_arr = np.frombuffer(file_bytes, np.uint8)
-
-    frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-    prediction = predict_sign(frame)
-
-    if prediction is None:
-        return jsonify({"confirmed": False, "prediction": "None"})
-
-    confirmed = prediction == current_target
-    return jsonify({"confirmed": confirmed, "prediction": prediction})
-
-
-@app.route("/set_target", methods=["POST"])
-def set_target():
-    """
-    Sets target letter for game mode
-    """
-    global current_target
-    data = request.get_json()
-    if "target" not in data:
-        return jsonify({"error": "Target letter required"}), 400
-
-    current_target = data["target"].upper()
-    return jsonify({"message": f"Target set to {current_target}"})
-
+        return jsonify({"predicted": predicted, "confirmed": True})
+    except Exception as e:
+        app.logger.exception("predict_frame error")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
