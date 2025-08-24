@@ -4,5 +4,6 @@ mediapipe
 opencv-python
 protobuf==3.20.3
 flask-cors==4.0.1
-tensorflow==2.15.0
+tensorflow==2.19.0
 numpy==1.26.4
+keras==3.11.0
