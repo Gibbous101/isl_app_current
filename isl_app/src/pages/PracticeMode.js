@@ -1,32 +1,21 @@
 // src/pages/PracticeMode.js
-// npm i @mediapipe/hands @mediapipe/drawing_utils @mediapipe/camera_utils
-
 import React, { useEffect, useRef, useState } from "react";
 import BaseLayout from "../components/BaseLayout";
-import { Hands } from "@mediapipe/hands";
-import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
-import * as cam from "@mediapipe/camera_utils";
+import API_BASE_URL from "../config";
 import "./PracticeMode.css";
-
-const BACKEND = "https://isl-app-backend.onrender.com";
 
 const letters = ["A", "B", "C"]; // extend later if you like
 const PICK_INTERVAL_MS = 5000;
-const POST_INTERVAL_MS = 100; // throttle to 10 fps max
+const POST_INTERVAL_MS = 1000; // Reduced frequency to avoid overwhelming the server
 
 export default function PracticeMode() {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const handsRef = useRef(null);
-  const cameraRef = useRef(null);
-  const lastPostRef = useRef(0);
-  const sendingRef = useRef(false);
-
+  const imgRef = useRef(null);
   const [prediction, setPrediction] = useState("");
   const [targetLetter, setTargetLetter] = useState("A");
   const [feedback, setFeedback] = useState("");
+  const [latestLandmarks, setLatestLandmarks] = useState(null);
 
-  // pick a different letter
+  // pick a new target letter every PICK_INTERVAL_MS
   useEffect(() => {
     const choose = () => {
       let r;
@@ -39,100 +28,133 @@ export default function PracticeMode() {
     return () => clearInterval(id);
   }, [targetLetter]);
 
-  // init Mediapipe once
+  // Fetch latest landmarks from backend
   useEffect(() => {
-    const hands = new Hands({
-      locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`,
-    });
-    hands.setOptions({
-      maxNumHands: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.7,
-      modelComplexity: 1,
-    });
-    handsRef.current = hands;
-
-    hands.onResults(async (results) => {
-      // draw landmarks to hidden canvas if you want to debug
-      const canvasEl = canvasRef.current;
-      if (canvasEl) {
-        const ctx = canvasEl.getContext("2d");
-        ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-        if (results.multiHandLandmarks?.length) {
-          const lm = results.multiHandLandmarks[0];
-          drawConnectors(ctx, lm, Hands.HAND_CONNECTIONS, {
-            color: "#00FF00",
-            lineWidth: 2,
-          });
-          drawLandmarks(ctx, lm, { color: "#FF0000", lineWidth: 1 });
-        }
-      }
-
-      // throttle posts
-      const now = performance.now();
-      if (
-        !results.multiHandLandmarks ||
-        results.multiHandLandmarks.length === 0 ||
-        sendingRef.current ||
-        now - lastPostRef.current < POST_INTERVAL_MS
-      ) {
-        return;
-      }
-
-      lastPostRef.current = now;
-      sendingRef.current = true;
-
-      const lm = results.multiHandLandmarks[0];
-      // backend expects flat array of 63 numbers (x,y,z * 21)
-      const flat63 = lm.flatMap((p) => [p.x, p.y, p.z]).slice(0, 63);
-
+    const fetchLandmarks = async () => {
       try {
-        const res = await fetch(`${BACKEND}/predict_frame`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ landmarks: flat63 }),
-        });
+        const res = await fetch(`${API_BASE_URL}/latest_landmarks`);
+        if (!res.ok) {
+          console.error("Failed to fetch landmarks:", res.status, res.statusText);
+          return;
+        }
         const data = await res.json();
-        if (data?.predicted) {
-          const p = String(data.predicted).toUpperCase();
-          setPrediction(p);
-          setFeedback(p === targetLetter ? "✅ Correct!" : "❌ Try Again!");
+        console.log("Landmarks response:", data); // Debug log
+        
+        if (data?.landmarks && data.landmarks.length === 84) {
+          console.log("Setting landmarks:", data.landmarks.length);
+          setLatestLandmarks(data.landmarks);
+        } else if (data?.landmarks && data.landmarks.length > 0) {
+          console.log("Received landmarks but wrong length:", data.landmarks.length, "expected 84");
+        } else {
+          console.log("No landmarks in response");
+          setLatestLandmarks(null);
         }
       } catch (e) {
-        // network hiccups shouldn't freeze UI
-        // console.error(e);
-      } finally {
-        sendingRef.current = false;
+        console.error("Error fetching landmarks:", e);
       }
-    });
-
-    // camera
-    const videoEl = videoRef.current;
-    if (videoEl) {
-      // avoid autoplay policy issues on iOS by setting attributes early
-      videoEl.setAttribute("playsinline", "");
-      videoEl.setAttribute("muted", "");
-      const camera = new cam.Camera(videoEl, {
-        onFrame: async () => {
-          if (handsRef.current) {
-            await handsRef.current.send({ image: videoEl });
-          }
-        },
-        width: 640,
-        height: 480,
-      });
-      cameraRef.current = camera;
-      camera.start();
-    }
-
-    // cleanup once
-    return () => {
-      try {
-        cameraRef.current?.stop();
-      } catch {}
-      handsRef.current?.close?.();
     };
-  }, []); // 🚫 do NOT include targetLetter here
+
+    const landmarkInterval = setInterval(fetchLandmarks, POST_INTERVAL_MS);
+    return () => clearInterval(landmarkInterval);
+  }, []);
+
+  // Make predictions when landmarks are available
+  useEffect(() => {
+    const makePrediction = async () => {
+      if (!latestLandmarks || latestLandmarks.length !== 84) {
+        console.log("No landmarks available or wrong length:", latestLandmarks?.length, "expected: 84");
+        return;
+      }
+      
+      console.log("Making prediction with landmarks length:", latestLandmarks.length);
+      console.log("First few landmarks:", latestLandmarks.slice(0, 6));
+      console.log("Request URL:", `${API_BASE_URL}/predict_frame`);
+      
+      try {
+        const requestBody = JSON.stringify({ landmarks: latestLandmarks });
+        console.log("Request body length:", requestBody.length);
+        
+        const res = await fetch(`${API_BASE_URL}/predict_frame`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: requestBody,
+        });
+        
+        console.log("Response status:", res.status);
+        console.log("Response headers:", res.headers);
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("Prediction request failed:", res.status, res.statusText, errorText);
+          setPrediction("HTTP Error: " + res.status);
+          return;
+        }
+        
+        const responseText = await res.text();
+        console.log("Raw response:", responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error("Failed to parse JSON response:", parseError, "Raw:", responseText);
+          setPrediction("JSON Parse Error");
+          return;
+        }
+        
+        console.log("Parsed prediction response:", data);
+        
+        if (data?.predicted) {
+          const p = String(data.predicted).toUpperCase();
+          console.log("Setting prediction:", p);
+          setPrediction(p);
+          setFeedback(p === targetLetter ? "✅ Correct!" : "❌ Try Again!");
+        } else if (data?.error) {
+          console.error("Prediction error:", data.error);
+          setPrediction("Error: " + data.error);
+        } else {
+          console.error("Unexpected response format:", data);
+          setPrediction("Unexpected response");
+        }
+      } catch (e) {
+        console.error("Network error during prediction:", e.name, e.message);
+        console.error("Full error:", e);
+        setPrediction("Network Error: " + e.message);
+      }
+    };
+
+    if (latestLandmarks) {
+      makePrediction();
+    }
+  }, [latestLandmarks, targetLetter]);
+
+  // Helper function to handle test button clicks
+  const handleTestClick = async (testType, endpoint, body = null) => {
+    try {
+      const options = {
+        method: body ? "POST" : "GET",
+        headers: body ? { "Content-Type": "application/json" } : {},
+      };
+      if (body) options.body = JSON.stringify(body);
+
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, options);
+      const data = await res.json();
+      console.log(`${testType} result:`, data);
+      alert(`${testType}: ${JSON.stringify(data, null, 2)}`);
+    } catch (e) {
+      console.error(`${testType} failed:`, e);
+      alert(`${testType} failed: ${e.message}`);
+    }
+  };
+
+  const getFeedbackClass = () => {
+    if (feedback.startsWith("✅")) return "feedback-correct";
+    if (feedback.startsWith("❌")) return "feedback-incorrect";
+    return "";
+  };
 
   return (
     <BaseLayout title="Practice Mode">
@@ -141,38 +163,83 @@ export default function PracticeMode() {
           Practice your ISL alphabet signs with real-time feedback
         </h2>
 
-        {/* visible video stream */}
-        <video
-          ref={videoRef}
-          className="video-frame"
-          autoPlay
-          muted
-          playsInline
-        />
-
-        {/* keep canvas hidden, you can show it if you want overlays */}
-        <canvas
-          ref={canvasRef}
-          width={640}
-          height={480}
-          style={{ display: "none" }}
-        />
+        <div className="video-wrapper">
+          <img
+            src={`${API_BASE_URL.replace(/\/$/, "")}/video_feed`}
+            alt="Live Video Feed"
+            className="video-frame"
+            onError={(e) => {
+              console.error("Video feed error:", e);
+            }}
+          />
+        </div>
 
         <div className="challenge-card">
           <h3>
-            Prediction: <span>{prediction || "Detecting..."}</span>
+            Prediction: 
+            <span className={!prediction || prediction === "Detecting..." ? "detecting" : ""}>
+              {prediction || "Detecting..."}
+            </span>
           </h3>
+          
           <h3>
             Target Letter: <span>{targetLetter}</span>
           </h3>
-          <h3
-            style={{
-              color: feedback.startsWith("✅") ? "green" : "red",
-              fontWeight: "bold",
-            }}
-          >
-            {feedback}
+          
+          <h3 className={getFeedbackClass()}>
+            {feedback || "Make a sign to get started!"}
           </h3>
+
+          {/* Test buttons for debugging */}
+          <div className="test-buttons">
+            <button 
+              className="test-button"
+              onClick={() => handleTestClick("Health Check", "/health")}
+            >
+              Test Health
+            </button>
+            
+            <button 
+              className="test-button"
+              onClick={() => handleTestClick("Test Prediction", "/test_prediction")}
+            >
+              Test Prediction
+            </button>
+            
+            <button 
+              className="test-button"
+              onClick={() => handleTestClick("Latest Landmarks", "/latest_landmarks")}
+            >
+              Test Landmarks
+            </button>
+            
+            <button 
+              className="test-button"
+              onClick={() => {
+                if (!latestLandmarks) {
+                  alert("No landmarks available");
+                  return;
+                }
+                handleTestClick("Manual Prediction", "/predict_frame", { landmarks: latestLandmarks });
+              }}
+            >
+              Test Current Landmarks
+            </button>
+          </div>
+
+          {/* Debug info */}
+          <div className="debug-info">
+            <div>API Base URL: {API_BASE_URL}</div>
+            <div>Landmarks detected: {latestLandmarks ? "Yes" : "No"}</div>
+            <div>Landmarks length: {latestLandmarks?.length || 0}</div>
+            <div>
+              Sample landmarks: {
+                latestLandmarks 
+                  ? `${latestLandmarks.slice(0, 3).map(v => v.toFixed(3)).join(', ')}...` 
+                  : 'None'
+              }
+            </div>
+          </div>
         </div>
       </div>
     </BaseLayout>

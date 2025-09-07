@@ -12,26 +12,30 @@ function Home() {
         <section className="section">
           <h2>Practice Mode</h2>
           <p>Test your ISL skills in practice mode. No scores are saved here.</p>
-          <Link to="game/practice">
+          <Link to="/game/practice">
             <button>Go to Practice Mode</button>
           </Link>
         </section>
         <section className="section">
           <h2>Main Mode</h2>
           <p>Daily fixed challenge. Scores are saved and compared on the leaderboard.</p>
-          <Link to="game/game">
+          <Link to="/game/game">
             <button>Go to Main Mode</button>
           </Link>
         </section>
         <section className="section">
           <h2>Learn Mode</h2>
           <p>Learn ISL through teacher videos on a split-screen setup.</p>
-          <button disabled>Coming Soon</button>
+          <Link to="/learn">
+            <button>Go to Learn Mode</button>
+          </Link>
         </section>
         <section className="section">
           <h2>Leaderboard</h2>
           <p>View the top scores of all players in main mode.</p>
-          <button disabled>Coming Soon</button>
+          <Link to="/leaderboard">
+            <button>Go to the Leaderboard</button>
+          </Link>
         </section>
       </main>
     </div>

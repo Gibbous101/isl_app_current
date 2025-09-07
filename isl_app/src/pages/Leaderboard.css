@@ -41,3 +41,6 @@
   font-size: 14px;
   color: var(--text-color);
 }
+
+.max-w-2xl mx-auto mt-6 {
+  color: black;}

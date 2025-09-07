@@ -11,6 +11,9 @@ while True:
     if not success:
         break
 
+    # Mirror the frame
+    img = cv2.flip(img, 1)
+
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     results = hands.process(img_rgb)
 
