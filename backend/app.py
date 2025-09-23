@@ -1,5 +1,6 @@
 # backend/app.py
 import os
+import pickle
 import numpy as np
 import tensorflow as tf
 from flask import Flask, request, jsonify, Response
@@ -32,15 +33,20 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "model")
 MODEL_PATH = os.path.join(MODEL_DIR, "sign_language_model.h5")
 LABELS_PATH = os.path.join(MODEL_DIR, "label_classes.npy")
+SCALER_PATH = os.path.join(MODEL_DIR, "scaler.pkl")  # Add this
 
 try:
     logger.info("[boot] Loading model...")
     model = tf.keras.models.load_model(MODEL_PATH)
     label_classes = np.load(LABELS_PATH, allow_pickle=True)
-    logger.info(f"[boot] Model and labels loaded OK. Classes: {label_classes}")
+
+    with open(SCALER_PATH, 'rb') as f:
+        scaler = pickle.load(f)
+    logger.info(f"[boot] Model, scaler and labels loaded OK. Classes: {label_classes}")
 except Exception as e:
     model = None
     label_classes = None
+    scaler = None  # Add this
     logger.error(f"[boot] Failed to load model: {e}")
 
 # ---- MediaPipe hands setup ----
@@ -76,33 +82,33 @@ def generate_frames():
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         results = hands.process(img_rgb)
 
+        # In the generate_frames() function, update the landmark extraction:
         if results.multi_hand_landmarks:
             # Extract landmarks for both hands (up to 2 hands)
             all_landmarks = []
-            
+
             # Process up to 2 hands
             for i in range(min(2, len(results.multi_hand_landmarks))):
                 hand = results.multi_hand_landmarks[i]
-                hand_landmarks = [coord for lm in hand.landmark for coord in (lm.x, lm.y, lm.z)]
+                hand_landmarks = [coord for lm in hand.landmark for coord in (lm.x, lm.y, lm.z)]  # All 3 coordinates
                 all_landmarks.extend(hand_landmarks)
-            
+
             # If we have less than 2 hands, pad with zeros
-            while len(all_landmarks) < 84:  # 2 hands × 21 landmarks × 3 coords = 126, but your model expects 84
+            while len(all_landmarks) < 126:  # 2 hands × 21 landmarks × 3 coords = 126
                 all_landmarks.append(0.0)
-            
+
             # If we have more than expected, truncate
-            latest_landmarks = all_landmarks[:84]
-            
+            latest_landmarks = all_landmarks[:126]
+
             # Log occasionally for debugging
             if frame_count % 100 == 0:
                 logger.info(f"Hands detected: {len(results.multi_hand_landmarks)}, landmarks count: {len(latest_landmarks)}")
-            
+
             # draw all hands
             for hand_lms in results.multi_hand_landmarks:
                 mp_draw.draw_landmarks(img, hand_lms, mp_hands.HAND_CONNECTIONS)
         else:
-            latest_landmarks = None
-
+            latest_landmarks = None  
         ret, buffer = cv2.imencode('.jpg', img)
         if not ret:
             logger.warning("Failed to encode frame")
@@ -161,15 +167,16 @@ def latest_landmarks_route():
 @app.route("/test_prediction", methods=["GET"])
 def test_prediction():
     """Test endpoint to verify prediction works with dummy data"""
-    if model is None or label_classes is None:
+    if model is None or label_classes is None or scaler is None:  # Check scaler
         return jsonify({"error": "Model not loaded"}), 500
     
-    # Create dummy landmarks (84 values for 2 hands)
-    dummy_landmarks = [0.5] * 84  # All coordinates at center
+    # Create dummy landmarks (126 values for 2 hands)
+    dummy_landmarks = [0.5] * 126   # All coordinates at center
     
     try:
         x = np.array(dummy_landmarks, dtype=np.float32).reshape(1, -1)
-        preds = model.predict(x, verbose=0)
+        x_scaled = scaler.transform(x)  # Apply scaling
+        preds = model.predict(x_scaled, verbose=0)
         confidence = float(np.max(preds))
         idx = int(np.argmax(preds, axis=1)[0])
         predicted = str(label_classes[idx])
@@ -181,7 +188,7 @@ def test_prediction():
             "confidence": confidence,
             "test": "dummy_landmarks",
             "model_input_shape": list(x.shape),
-            "expected_input_size": 84,
+            "expected_input_size": 126,
             "all_predictions": preds.tolist()[0]
         })
     except Exception as e:
@@ -190,71 +197,71 @@ def test_prediction():
     
 @app.route("/predict_frame", methods=["POST"])
 def predict_frame():
-    if model is None or label_classes is None:
-        logger.error("Model not loaded")
-        return jsonify({"error": "Model not loaded"}), 500
+    if model is None or label_classes is None or scaler is None:
+        logger.error("Model or scaler not loaded")
+        return jsonify({"error": "Model or scaler not loaded"}), 500
 
     try:
-        # Log the raw request
-        raw_data = request.get_data()
-        logger.debug(f"Raw request data length: {len(raw_data)}")
-        
-        data = request.get_json(force=True) or {}
+        data = request.get_json(force=True)
         arr = data.get("landmarks")
-        
-        logger.debug(f"Parsed JSON keys: {list(data.keys())}")
-        logger.debug(f"Landmarks type: {type(arr)}, length: {len(arr) if arr else 'None'}")
-        
-        if arr is None:
-            logger.warning("No landmarks provided in request")
-            return jsonify({"error": "No landmarks provided"}), 400
 
-        if not isinstance(arr, list):
-            logger.warning(f"Landmarks is not a list, got: {type(arr)}")
-            return jsonify({"error": "Landmarks must be a list"}), 400
+        if not arr or not isinstance(arr, list):
+            logger.warning("Invalid or missing landmarks in request")
+            return jsonify({"error": "Landmarks must be a non-empty list"}), 400
 
         logger.info(f"Received landmarks array of length: {len(arr)}")
-        logger.debug(f"First 6 landmarks: {arr[:6] if len(arr) >= 6 else arr}")
 
+        # reshape into 1x126 array
         x = np.array(arr, dtype=np.float32).reshape(1, -1)
-        if x.shape[1] != 84:
-            logger.warning(f"Expected 84 values, got {x.shape[1]}")
-            return jsonify({"error": f"Expected 84 values, got {x.shape[1]}"}), 400
+        if x.shape[1] != 126:
+            logger.warning(f"Expected 126 values, got {x.shape[1]}")
+            return jsonify({"error": f"Expected 126 values, got {x.shape[1]}"}), 400
 
-        logger.info(f"Input shape for model: {x.shape}")
-        logger.debug(f"Input data range: min={x.min():.3f}, max={x.max():.3f}")
+        # scale input before prediction
+        x_scaled = scaler.transform(x)
 
-        preds = model.predict(x, verbose=0)
+        preds = model.predict(x_scaled, verbose=0)
         confidence = float(np.max(preds))
         idx = int(np.argmax(preds, axis=1)[0])
-        predicted = str(label_classes[idx])
 
-        logger.info(f"Prediction: {predicted} (confidence: {confidence:.3f}, index: {idx})")
+        if confidence >= 0.3:   # same threshold here
+            predicted = str(label_classes[idx])
+            confirmed = True
+        else:
+            predicted = "Unknown"
+            confirmed = False
 
         return jsonify({
-            "predicted": predicted, 
+            "predicted": predicted,
             "confidence": confidence,
-            "confirmed": True,
-            "index": idx
+            "confirmed": confirmed
         })
+
+
+
+
     except Exception as e:
         logger.exception("predict_frame error")
         return jsonify({"error": str(e)}), 500
+
     
 @app.route("/predict_current", methods=["GET"])
 def predict_current():
     global latest_landmarks
-    if model is None or label_classes is None:
+    if model is None or label_classes is None or scaler is None:  # Check scaler
         return jsonify({"error": "Model not loaded"}), 500
     if latest_landmarks is None:
         return jsonify({"predicted": "None", "confirmed": False})
 
     try:
         x = np.array(latest_landmarks, dtype=np.float32).reshape(1, -1)
-        if x.shape[1] != 84:
-            return jsonify({"error": f"Expected 84 values, got {x.shape[1]}"}), 400
-
-        preds = model.predict(x, verbose=0)
+        if x.shape[1] != 126:
+            return jsonify({"error": f"Expected 126 values, got {x.shape[1]}"}), 400
+        
+        # APPLY SCALING (NEW)
+        x_scaled = scaler.transform(x)
+        
+        preds = model.predict(x_scaled, verbose=0)  # Use x_scaled
         confidence = float(np.max(preds))
         idx = int(np.argmax(preds, axis=1)[0])
         predicted = str(label_classes[idx])
