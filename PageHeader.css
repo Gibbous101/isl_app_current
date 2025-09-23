@@ -1,0 +1,35 @@
+
+
+.page-header h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.back-btn:hover {
+  transition: color 0.3s ease;
+  color: #571ab8ff;
+}
+.page-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 80px;   /* lock header height */
+  background: #222;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 1000;
+}
+
+.profile-page {
+  padding-top: 80px; /* same as header height */
+}
