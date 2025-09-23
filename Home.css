@@ -1,0 +1,61 @@
+.home-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #e0f2fe, #f0f9ff); /* soft blue gradient */
+  color: #1e293b; /* dark slate text */
+}
+
+/* Section Styles */
+.section {
+  min-height: 260px;
+  width: 80%;
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 30px;
+  border-radius: 16px;
+  background: #ffffff; /* clean white card */
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.2); /* blue glow */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.section:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+}
+
+.section h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2563eb; /* primary blue heading */
+  margin-bottom: 10px;
+}
+
+.section p {
+  font-size: 15px;
+  color: #555;
+  margin-bottom: 18px;
+}
+
+/* Buttons */
+.section button {
+  padding: 10px 20px;
+  background: #3b82f6; /* vibrant blue */
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.section button:hover {
+  background: #2563eb; /* deeper blue */
+  transform: translateY(-2px);
+}

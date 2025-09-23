@@ -1,0 +1,212 @@
+/* PracticeMode.css - Simple and Clean Design */
+
+.video-card {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.practice-title {
+  color: #2c3e50;
+  font-size: 1.8rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 2rem;
+  line-height: 1.3;
+}
+
+.video-wrapper {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.video-frame {
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  display: block;
+  margin: 0 auto;
+  border: 1px solid #dee2e6;
+}
+
+.challenge-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 2rem;
+  border: 1px solid #e9ecef;
+}
+
+.challenge-card h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.challenge-card h3 span {
+  color: #007bff;
+  font-weight: 700;
+  font-size: 1.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  min-width: 100px;
+  text-align: center;
+}
+
+.challenge-card h3:nth-child(2) span {
+  color: #28a745;
+  background: #e8f5e8;
+  border-color: #c3e6cb;
+}
+
+.challenge-card h3:nth-child(3) {
+  font-size: 1.3rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Test buttons */
+.test-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin: 1.5rem 0;
+  flex-wrap: wrap;
+}
+
+.test-button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  min-width: 120px;
+}
+
+.test-button:hover {
+  background: #0056b3;
+}
+
+.test-button:active {
+  background: #004085;
+}
+
+/* Debug info */
+.debug-info {
+  background: #f1f3f4;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1.5rem;
+  border: 1px solid #e1e5e9;
+}
+
+.debug-info div {
+  color: #6c757d;
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+  font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.debug-info div:last-child {
+  margin-bottom: 0;
+}
+
+/* Status styles for feedback */
+.feedback-correct {
+  color: #28a745 !important;
+  font-weight: 600 !important;
+}
+
+.feedback-incorrect {
+  color: #dc3545 !important;
+  font-weight: 600 !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .video-card {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .practice-title {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .video-wrapper {
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .challenge-card {
+    padding: 1.5rem;
+  }
+  
+  .challenge-card h3 {
+    font-size: 1.1rem;
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+  
+  .challenge-card h3 span {
+    font-size: 1.3rem;
+    min-width: auto;
+    align-self: center;
+  }
+  
+  .test-buttons {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .test-button {
+    width: 100%;
+    max-width: 200px;
+  }
+}
+
+/* Subtle loading state */
+.detecting {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Clean focus states */
+.test-button:focus {
+  outline: 2px solid #80bdff;
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+.challenge-card h3 span,
+.test-button {
+  transition: all 0.2s ease;
+}
+
+.challenge-card {
+  color:black;
+}
+.stylestyle{
+  color:black;
+}

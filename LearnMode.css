@@ -1,0 +1,56 @@
+.learn-mode-container {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.split-screen {
+  display: flex;
+  gap: 1rem;
+}
+
+.left-panel, .right-panel {
+  flex: 1;
+  border: 1px solid #ccc;
+  padding: 1rem;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.letter-image {
+  width: 80%;
+  max-width: 300px;
+  height: auto;
+  margin-top: 1rem;
+}
+
+.navigation {
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.navigation button {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.letter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.letter-list button {
+  padding: 0.3rem 0.7rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.letter-list .active {
+  background-color: #007bff;
+  color: white;
+}

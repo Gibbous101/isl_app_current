@@ -1,0 +1,128 @@
+.profile-page {
+  min-height: 100vh;
+  background: linear-gradient(to bottom right, #e0f7ff, #f5fcff);
+  color: #1a1a1a;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 20px 0;
+  color: #0a2540;
+}
+
+.profile-container {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.user-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logout-btn {
+  background: #ff6b6b;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.logout-btn:hover {
+  background: #e63946;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  text-align: center;
+}
+
+.stat-card {
+  background: #f0f9ff;
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid #d0ebff;
+}
+
+.stat-card p {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.stat-card h3 {
+  font-size: 1.8rem;
+  margin-top: 5px;
+  color: #0a2540;
+}
+
+.achievements h2,
+.activity h2 {
+  margin-bottom: 15px;
+  color: #0a2540;
+}
+
+.badges {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  background: #4dabf7;
+  color: white;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.activity ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.activity li {
+  border-left: 4px solid #4dabf7;
+  padding-left: 10px;
+  margin-bottom: 12px;
+  background: #f8fbff;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.date {
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.details {
+  font-weight: 600;
+  color: #0a2540;
+}
+
+.no-activity {
+  color: #666;
+  font-style: italic;
+}
