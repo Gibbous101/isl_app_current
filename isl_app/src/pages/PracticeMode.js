@@ -1,10 +1,11 @@
-// src/pages/PracticeMode.js
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";   // ⬅️ import navigate
 import BaseLayout from "../components/BaseLayout";
 import API_BASE_URL from "../config";
 import "./PracticeMode.css";
+import PageHeader from "../components/PageHeader";
 
-const letters = ["A", "B", "C"]; // extend later if you like
+const letters = ["A", "B", "C"];
 const PICK_INTERVAL_MS = 5000;
 const POST_INTERVAL_MS = 1000; // Reduced frequency to avoid overwhelming the server
 
@@ -14,6 +15,7 @@ export default function PracticeMode() {
   const [targetLetter, setTargetLetter] = useState("A");
   const [feedback, setFeedback] = useState("");
   const [latestLandmarks, setLatestLandmarks] = useState(null);
+  const navigate = useNavigate();
 
   // pick a new target letter every PICK_INTERVAL_MS
   useEffect(() => {
@@ -40,12 +42,13 @@ export default function PracticeMode() {
         const data = await res.json();
         console.log("Landmarks response:", data); // Debug log
         
-        if (data?.landmarks && data.landmarks.length === 84) {
-          console.log("Setting landmarks:", data.landmarks.length);
-          setLatestLandmarks(data.landmarks);
+        if (data?.landmarks && data.landmarks.length === 126) {
+        console.log("Setting landmarks:", data.landmarks.length);
+        setLatestLandmarks(data.landmarks);
         } else if (data?.landmarks && data.landmarks.length > 0) {
-          console.log("Received landmarks but wrong length:", data.landmarks.length, "expected 84");
-        } else {
+        console.log("Received landmarks but wrong length:", data.landmarks.length, "expected 126");
+        }
+         else {
           console.log("No landmarks in response");
           setLatestLandmarks(null);
         }
@@ -61,11 +64,10 @@ export default function PracticeMode() {
   // Make predictions when landmarks are available
   useEffect(() => {
     const makePrediction = async () => {
-      if (!latestLandmarks || latestLandmarks.length !== 84) {
-        console.log("No landmarks available or wrong length:", latestLandmarks?.length, "expected: 84");
-        return;
-      }
-      
+      if (!latestLandmarks || latestLandmarks.length !== 126) {
+      console.log("No landmarks available or wrong length:", latestLandmarks?.length, "expected: 126");
+      return;
+    }
       console.log("Making prediction with landmarks length:", latestLandmarks.length);
       console.log("First few landmarks:", latestLandmarks.slice(0, 6));
       console.log("Request URL:", `${API_BASE_URL}/predict_frame`);
@@ -157,6 +159,9 @@ export default function PracticeMode() {
   };
 
   return (
+    <>
+      <PageHeader title="ISL Practice" backTo="/home" />
+          <br/><br/><br/>   
     <BaseLayout title="Practice Mode">
       <div className="video-card">
         <h2 className="practice-title">
@@ -243,5 +248,6 @@ export default function PracticeMode() {
         </div>
       </div>
     </BaseLayout>
+    </>
   );
 }
