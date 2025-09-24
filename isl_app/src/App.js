@@ -7,6 +7,8 @@ import PracticeMode from './pages/PracticeMode';
 import GameMode from './pages/GameMode';
 import LearnMode from './pages/LearnMode';
 import Leaderboard from './pages/Leaderboard';
+import Profile from './pages/Profile';
+import LandingPage from './pages/LandingPage';  
 
 function App() {
   return (
@@ -14,7 +16,8 @@ function App() {
       <div className="App">
         <Routes>
           {/* Default route to signup */}
-          <Route path="/" element={<Navigate to="/signup" />} /> 
+          <Route path="/" element={<Navigate to="/landing" />} /> 
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/home" element={<Home />} />
@@ -22,6 +25,7 @@ function App() {
           <Route path="/game/game" element={<GameMode />} />
           <Route path="/learn" element={<LearnMode />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </div>
     </Router>
