@@ -30,7 +30,7 @@ body.light {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #2c3e50;
+  background: #222;
   color: white;
   padding: 10px 20px;
   z-index: 100;
@@ -89,60 +89,10 @@ body {
   transition: background 0.3s, color 0.3s;
 }
 
-/* Form Container */
-.auth-form {
-  background: var(--card-color);
-  width: 350px;
-  margin: 60px auto;
-  padding: 30px;
-  border-radius: 16px;
-  box-shadow: 0 0 30px rgba(168, 85, 247, 0.25);
-  text-align: center;
-  transition: background 0.3s, box-shadow 0.3s;
-}
 
-/* Headings */
-.auth-form h2 {
-  margin-bottom: 10px;
-  font-size: 28px;
-  font-weight: bold;
-  color: var(--accent-color);
-}
 
-/* Input Fields */
-.auth-form input {
-  width: 100%;
-  padding: 12px;
-  margin: 10px 0;
-  background: var(--input-bg);
-  border: none;
-  border-radius: 8px;
-  color: var(--input-text);
-  font-size: 16px;
-}
-
-.auth-form input::placeholder {
-  color: #999;
-}
 
 /* Button */
-.auth-form button {
-  width: 100%;
-  padding: 12px;
-  background-color: var(--accent-color);
-  border: none;
-  border-radius: 8px;
-  color: white;
-  font-weight: bold;
-  font-size: 16px;
-  cursor: pointer;
-  margin-top: 10px;
-  transition: background 0.3s;
-}
-
-.auth-form button:hover {
-  background-color: #9333ea;
-}
 
 /* Light/Dark Toggle */
 
